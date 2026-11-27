@@ -44,6 +44,13 @@ class TxtNovelConverterTest {
         assertEquals(original, sections.joinToString("") { it.body })
     }
 
+    @Test
+    fun preservesConsecutiveChapterHeadings() {
+        val chapters = TxtNovelConverter.chapters("第一章\n第二章\n正文")
+        assertEquals(listOf("第一章", "第二章"), chapters.map { it.title })
+        assertEquals("", chapters.first().body)
+    }
+
     @Test(expected = IOException::class)
     fun rejectsEmptyText() {
         TxtNovelConverter.decode("  \n".toByteArray())
