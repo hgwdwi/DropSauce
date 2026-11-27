@@ -82,7 +82,7 @@ internal object LegadoSourcePreflight {
                 for (field in fields) {
                     val value = rules?.string(field).orEmpty()
                     if (value.isBlank()) issues += "Missing $group.$field"
-                    else if (runCatching { parseRule(value, field in setOf("bookList", "chapterList")) }.isFailure) {
+                    else if (runCatching { LegadoStaticRule.parse(value, field in setOf("bookList", "chapterList")) }.isFailure) {
                         issues += "Unsupported $group.$field"
                     }
                 }
@@ -94,13 +94,13 @@ internal object LegadoSourcePreflight {
                     if (field in required[group].orEmpty()) continue
                     if (value.toString() in listOf("null", "\"\"")) continue
                     if (field in optional[group].orEmpty()) {
-                        val parsed = runCatching { parseRule(rules.string(field), false) }.getOrNull()
+                        val parsed = runCatching { LegadoStaticRule.parse(rules.string(field), false) }.getOrNull()
                         val allowed = when (field) {
                             "tocUrl" -> setOf("href", "content")
                             "coverUrl" -> setOf("src", "href", "content")
                             else -> setOf("text", "html", "content")
                         }
-                        if (parsed == null || parsed.extraction !in allowed) issues += "Unsupported $group.$field"
+                        if (parsed == null || (parsed.extraction != null && parsed.extraction !in allowed)) issues += "Unsupported $group.$field"
                     } else issues += "Optional rule not implemented: $group.$field"
                 }
             }

@@ -57,7 +57,7 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
             val body = response.body ?: throw IOException("Empty response")
             val media = body.contentType()
             if (media != null && media.type != "text" &&
-                !(media.type == "application" && media.subtype == "xhtml+xml")) {
+                !(media.type == "application" && (media.subtype == "xhtml+xml" || media.subtype == "json" || media.subtype.endsWith("+json")))) {
                 throw IOException("Unsupported response type")
             }
             if (body.contentLength() > MAX_BYTES) throw IOException("HTML exceeds size limit")
@@ -73,7 +73,11 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
             }
             // Jsoup detects BOM and HTML meta charset when HTTP has no charset.
             val charset = media?.charset()?.name()
-            Jsoup.parse(ByteArrayInputStream(bytes.toByteArray()), charset, target.toString()).outerHtml()
+            val raw = bytes.toByteArray()
+            val decoded = raw.toString(media?.charset() ?: Charsets.UTF_8)
+            val leading = decoded.trimStart().removePrefix("\uFEFF")
+            if (leading.startsWith("{") || leading.startsWith("[")) decoded
+            else Jsoup.parse(ByteArrayInputStream(raw), charset, target.toString()).outerHtml()
         }
     }
 

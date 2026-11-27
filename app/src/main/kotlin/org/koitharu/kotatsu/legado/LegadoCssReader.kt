@@ -1,5 +1,6 @@
 package org.koitharu.kotatsu.legado
 
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -69,14 +70,14 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         ), toc)
     }
 
-    private fun optionalRule(group: String, field: String): LegadoSourcePreflight.CssRule? =
+    private fun optionalRule(group: String, field: String): LegadoStaticRule? =
         (source.original[group] as? JsonObject)?.string(field)?.takeIf { it.isNotBlank() }
-            ?.let { LegadoSourcePreflight.parseRule(it, false) }
+            ?.let { LegadoStaticRule.parse(it, false) }
 
-    private fun optionalValue(group: String, field: String, root: Element): String? =
+    private fun optionalValue(group: String, field: String, root: Any): String? =
         optionalRule(group, field)?.let { first(it, root) }
 
-    private fun metadata(group: String, field: String, root: Element): String? {
+    private fun metadata(group: String, field: String, root: Any): String? {
         val rule = optionalRule(group, field) ?: return null
         val value = first(rule, root) ?: return null
         return (if (rule.extraction == "html") Jsoup.parseBodyFragment(value).text() else value)
@@ -98,18 +99,9 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
     fun chapterHtml(html: String, pageUrl: String): String {
         val doc = document(html, pageUrl)
         val extraction = rule("ruleContent", "content")
-        val selected = extraction.elements(doc)
-        require(selected.isNotEmpty()) { "Content selector found no matches" }
-        // Remove active and extraneous elements before extracting body text.
-        selected.forEach { it.select("script,style,noscript,iframe,object,embed,form").remove() }
-        val fragment = when (extraction.extraction) {
-            "html" -> selected.joinToString("\n") { it.html() }
-            "text" -> selected.joinToString("\n") {
-                // TextNode / Element.text() would flatten all paragraphs.
-                "<p>" + org.jsoup.nodes.Entities.escape(LegadoTextExtractor.extract(it)).replace("\n", "<br>") + "</p>"
-            }
-            else -> error("Body rule must extract text or HTML")
-        }
+        if (doc is Element) doc.select("script,style,noscript,iframe,object,embed,form").remove()
+        val fragment = extraction.body(doc)
+        require(fragment.isNotBlank()) { "Content selector found no matches" }
         val cleaned = Jsoup.clean(fragment, pageUrl, Safelist.none().addTags(
             "p", "br", "div", "span", "h1", "h2", "h3", "h4", "strong", "b",
             "em", "i", "u", "blockquote", "hr", "ul", "ol", "li", "ruby", "rt", "rp",
@@ -118,18 +110,20 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         return cleaned
     }
 
-    private fun document(html: String, pageUrl: String): Element {
+    private fun document(html: String, pageUrl: String): Any {
         require(html.length <= MAX_HTML_CHARS) { "HTML exceeds size limit" }
         require(resolve(source.url, pageUrl) != null) { "Invalid page URL" }
+        val trimmed = html.trimStart().removePrefix("\uFEFF")
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) return Json.parseToJsonElement(trimmed)
         return Jsoup.parse(html, pageUrl)
     }
 
-    private fun rule(group: String, field: String, list: Boolean = false): LegadoSourcePreflight.CssRule {
+    private fun rule(group: String, field: String, list: Boolean = false): LegadoStaticRule {
         val json = source.original[group] as? JsonObject ?: error("Missing $group")
-        return LegadoSourcePreflight.parseRule(json.string(field), list)
+        return LegadoStaticRule.parse(json.string(field), list)
     }
 
-    private fun first(rule: LegadoSourcePreflight.CssRule, row: Element): String? =
+    private fun first(rule: LegadoStaticRule, row: Any): String? =
         rule.values(row).firstOrNull { it.isNotBlank() }?.trim()
 
     private fun JsonObject.string(key: String): String =
