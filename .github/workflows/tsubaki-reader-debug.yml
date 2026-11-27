@@ -1,7 +1,7 @@
 name: TsubakiReader debug APK
 on:
   pull_request:
-    branches: [main]
+    branches: [main, 'dev/tsubaki-reader-v0.1']
   workflow_dispatch:
 permissions:
   contents: read
