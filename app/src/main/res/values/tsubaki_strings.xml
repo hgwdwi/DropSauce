@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tsubaki_import_books">Books and archives</string>
+    <string name="tsubaki_import_books_description">Import TXT, EPUB, PDF and supported archives</string>
+</resources>
