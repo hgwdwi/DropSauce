@@ -131,8 +131,7 @@ class ReaderTts @Inject constructor(
 		if (_isPlaying.value) {
 			pause()
 		}
-		engine.setSpeechRate(settings.epubTtsSpeed)
-		engine.setPitch(settings.epubTtsPitch)
+		applyEngineTuning(engine)
 		engine.voice = voice
 		_previewingVoice.value = voice.name
 		engine.speak(sampleText(), TextToSpeech.QUEUE_FLUSH, null, PREVIEW_UTTERANCE_PREFIX + voice.name)
@@ -156,6 +155,13 @@ class ReaderTts @Inject constructor(
 		}.distinctBy { it.packageName }.sortedBy { it.label }
 
 	fun selectedEngine(): String = settings.epubTtsEngine
+
+	fun usesGenieReader(): Boolean = selectedEngine() == GENIEREADER_PACKAGE
+
+	private fun applyEngineTuning(engine: TextToSpeech) {
+		engine.setSpeechRate(if (usesGenieReader()) 1f else settings.epubTtsSpeed)
+		engine.setPitch(if (usesGenieReader()) 1f else settings.epubTtsPitch)
+	}
 
 	/** Switching engines pauses playback but preserves the current chapter and reading position. */
 	fun selectEngine(packageName: String) {
@@ -322,8 +328,7 @@ class ReaderTts @Inject constructor(
 
 	fun applySettings() {
 		val engine = tts ?: return
-		engine.setSpeechRate(settings.epubTtsSpeed)
-		engine.setPitch(settings.epubTtsPitch)
+		applyEngineTuning(engine)
 		val voice = slotVoice(selectedVoiceIndex())
 		if (voice != null) {
 			engine.voice = voice
@@ -401,13 +406,25 @@ class ReaderTts @Inject constructor(
 		}
 		applySettings()
 		engine.stop()
+		if (usesGenieReader() && (spokenLocale().language != "zh" ||
+				engine.isLanguageAvailable(Locale.CHINESE) < TextToSpeech.LANG_AVAILABLE)) {
+			_isPlaying.value = false
+			_engineFailed.value = true
+			return
+		}
+		_engineFailed.value = false
 		_isPlaying.value = true
 		spokenPrefix = skipChars
 		spokenOffset = skipChars
 		for (i in startIndex..chunks.lastIndex) {
 			val queueMode = if (i == startIndex) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
 			val sentence = spokenText(i).let { if (i == startIndex) it.drop(skipChars) else it }
-			engine.speak(sentence, queueMode, null, i.toString())
+			if (engine.speak(sentence, queueMode, null, i.toString()) != TextToSpeech.SUCCESS) {
+				engine.stop()
+				_isPlaying.value = false
+				_engineFailed.value = true
+				break
+			}
 		}
 	}
 
@@ -476,6 +493,7 @@ class ReaderTts @Inject constructor(
 	}
 }
 
+private const val GENIEREADER_PACKAGE = "io.github.hgwdwi.geniereader"
 internal const val VOICE_SLOTS = 4
 private const val SAMPLE_LENGTH = 120
 private const val PREVIEW_UTTERANCE_PREFIX = "preview:"
@@ -575,7 +593,12 @@ private fun splitSentences(text: String): List<Sentence> {
 		while (from < to && text[from].isWhitespace()) from++
 		while (to > from && text[to - 1].isWhitespace()) to--
 		if (from < to) {
-			result.add(Sentence(from, to))
+			while (from < to) {
+				var next = minOf(from + 1000, to)
+				if (next < to && Character.isHighSurrogate(text[next - 1])) next--
+				result.add(Sentence(from, next))
+				from = next
+			}
 		}
 		start = end
 		end = iterator.next()

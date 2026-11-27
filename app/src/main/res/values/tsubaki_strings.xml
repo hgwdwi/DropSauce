@@ -24,4 +24,5 @@
     <string name="tsubaki_legado_save_first">Save first %1$d chapters as offline book</string>
     <string name="tsubaki_tts_engine">Speech engine</string>
     <string name="tsubaki_tts_engine_error">The selected speech engine could not initialize. Check that it is installed and configured, or choose System default.</string>
+    <string name="tsubaki_tts_genie_limits">GenieReader currently supports Chinese only, with default speed and pitch. Enable system TTS in GenieReader first.</string>
 </resources>

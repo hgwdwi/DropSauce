@@ -111,6 +111,7 @@ fun showTtsVoicesDialog(context: Context, tts: ReaderTts, onClosed: () -> Unit) 
 			},
 		) {
 			Text(stringResource(R.string.tsubaki_tts_engine), style = MaterialTheme.typography.titleMedium)
+			if (selectedEngine == "io.github.hgwdwi.geniereader") Text(stringResource(R.string.tsubaki_tts_genie_limits), style = MaterialTheme.typography.bodySmall)
 			if (engineFailed) Text(stringResource(R.string.tsubaki_tts_engine_error), color = MaterialTheme.colorScheme.error)
 			Column {
 				TextButton(onClick = { tts.selectEngine("") }) {
