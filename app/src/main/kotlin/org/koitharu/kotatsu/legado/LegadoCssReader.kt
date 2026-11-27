@@ -84,6 +84,28 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
             .take(2000).takeIf { it.isNotBlank() }
     }
 
+    fun nextDirectoryUrls(html: String, pageUrl: String): List<String> = nextUrls("ruleToc", "nextTocUrl", html, pageUrl)
+
+    fun nextContentUrls(html: String, pageUrl: String): List<String> = nextUrls("ruleContent", "nextContentUrl", html, pageUrl)
+
+    private fun nextUrls(group: String, field: String, html: String, pageUrl: String): List<String> {
+        val rule = optionalRule(group, field) ?: return emptyList()
+        return rule.values(document(html, pageUrl)).filter { it.isNotBlank() }.map { link ->
+            resolve(pageUrl, link) ?: error("Unsupported pagination URL")
+        }.distinct().take(100)
+    }
+
+    fun reverseDirectory(): Boolean = (source.original["ruleToc"] as? JsonObject)?.string("chapterList")?.startsWith("-") == true
+
+    fun cleanCombinedContent(html: String): String {
+        val rule = (source.original["ruleContent"] as? JsonObject)?.string("replaceRegex").orEmpty()
+        if (rule.isBlank()) return html
+        val text = LegadoTextExtractor.extract(Jsoup.parseBodyFragment(html).body())
+        val cleaned = LegadoReplacement.parse(rule).apply(text)
+        require(cleaned.isNotBlank()) { "Content is empty after replacement" }
+        return "<p>" + org.jsoup.nodes.Entities.escape(cleaned).replace("\n", "<br>") + "</p>"
+    }
+
     fun chapters(html: String, pageUrl: String): List<Chapter> {
         val doc = document(html, pageUrl)
         val rows = rule("ruleToc", "chapterList", true).elements(doc)
@@ -120,7 +142,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
 
     private fun rule(group: String, field: String, list: Boolean = false): LegadoStaticRule {
         val json = source.original[group] as? JsonObject ?: error("Missing $group")
-        return LegadoStaticRule.parse(json.string(field), list)
+        return LegadoStaticRule.parse(if (field == "chapterList") json.string(field).removePrefix("-") else json.string(field), list)
     }
 
     private fun first(rule: LegadoStaticRule, row: Any): String? =

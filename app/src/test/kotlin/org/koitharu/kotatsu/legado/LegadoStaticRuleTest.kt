@@ -33,6 +33,22 @@ class LegadoStaticRuleTest {
         assertEquals(listOf("甲", "乙"), LegadoStaticRule.parse("@css:h1@text&&@css:h2@text", false).values(root))
     }
 
+    @Test fun linearRegexReplacementAndPagination() = kotlinx.coroutines.runBlocking {
+        val root = Jsoup.parse("<p>小说广告123</p>")
+        assertEquals(listOf("小说"), LegadoStaticRule.parse("@css:p@text##广告[0-9]+##", false).values(root))
+        val pages = LegadoPagination.collect("one", limit = 3,
+            fetch = { it }, extract = { page, _ -> page },
+            next = { _, url -> if (url == "one") listOf("two") else listOf("one") })
+        assertEquals(listOf("one", "two"), pages)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsafePaginationOverflow() = kotlinx.coroutines.runBlocking {
+        LegadoPagination.collect("1", limit = 2, fetch = { it },
+            extract = { page, _ -> page }, next = { _, url -> listOf((url.toInt() + 1).toString()) })
+        Unit
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsScripts() {
         LegadoStaticRule.parse("@js:java.get('x')", false)

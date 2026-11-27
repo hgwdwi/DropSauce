@@ -33,13 +33,22 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
         val detailHtml = fetch(book.url)
         val details = reader.details(book, detailHtml, book.url)
         val tocHtml = if (details.tocUrl == book.url) detailHtml else fetch(details.tocUrl)
-        return BookDirectory(details.book, reader.chapters(tocHtml, details.tocUrl))
+        val pages = LegadoPagination.collect(details.tocUrl, tocHtml, 20, ::fetch,
+            reader::chapters, reader::nextDirectoryUrls)
+        val chapters = pages.flatten().distinctBy { it.url }
+        require(chapters.size <= 10000) { "Directory exceeds chapter limit" }
+        return BookDirectory(details.book, if (reader.reverseDirectory()) chapters.reversed() else chapters)
     }
 
     suspend fun chapters(book: LegadoCssReader.Book): List<LegadoCssReader.Chapter> = directory(book).chapters
 
-    suspend fun content(chapter: LegadoCssReader.Chapter): String =
-        reader.chapterHtml(fetch(chapter.url), chapter.url)
+    suspend fun content(chapter: LegadoCssReader.Chapter): String {
+        val pages = LegadoPagination.collect(chapter.url, limit = 10, fetch = ::fetch,
+            extract = reader::chapterHtml, next = reader::nextContentUrls)
+        val html = pages.joinToString("\n")
+        require(html.length <= 4 * 1024 * 1024) { "Combined chapter exceeds size limit" }
+        return reader.cleanCombinedContent(html)
+    }
 
     private suspend fun fetch(url: String): String = withContext(Dispatchers.IO) {
         val target = url.toHttpUrl()
@@ -49,7 +58,7 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
         }
         val request = Request.Builder()
             .url(target)
-            .header("Accept", "text/html,application/xhtml+xml")
+            .header("Accept", "text/html,application/xhtml+xml,application/json")
             .header("User-Agent", "TsubakiReader/0.4")
             .get().build()
         client.newCall(request).await().use { response ->

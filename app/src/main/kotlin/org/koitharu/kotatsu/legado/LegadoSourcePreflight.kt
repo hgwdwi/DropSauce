@@ -36,6 +36,8 @@ internal object LegadoSourcePreflight {
     private val optional = mapOf(
         "ruleSearch" to setOf("author", "intro", "lastChapter", "kind", "wordCount", "coverUrl"),
         "ruleBookInfo" to setOf("name", "author", "intro", "lastChapter", "kind", "wordCount", "coverUrl", "tocUrl"),
+        "ruleToc" to setOf("nextTocUrl"),
+        "ruleContent" to setOf("nextContentUrl", "replaceRegex"),
     )
     private val scriptFields = setOf(
         "jsLib", "loginUrl", "loginUi", "loginCheckJs", "coverDecodeJs",
@@ -82,7 +84,7 @@ internal object LegadoSourcePreflight {
                 for (field in fields) {
                     val value = rules?.string(field).orEmpty()
                     if (value.isBlank()) issues += "Missing $group.$field"
-                    else if (runCatching { LegadoStaticRule.parse(value, field in setOf("bookList", "chapterList")) }.isFailure) {
+                    else if (runCatching { LegadoStaticRule.parse(if (field == "chapterList") value.removePrefix("-") else value, field in setOf("bookList", "chapterList")) }.isFailure) {
                         issues += "Unsupported $group.$field"
                     }
                 }
@@ -94,9 +96,13 @@ internal object LegadoSourcePreflight {
                     if (field in required[group].orEmpty()) continue
                     if (value.toString() in listOf("null", "\"\"")) continue
                     if (field in optional[group].orEmpty()) {
+                        if (field == "replaceRegex") {
+                            if (runCatching { LegadoReplacement.parse(rules.string(field)) }.isFailure) issues += "Unsupported $group.$field"
+                            continue
+                        }
                         val parsed = runCatching { LegadoStaticRule.parse(rules.string(field), false) }.getOrNull()
                         val allowed = when (field) {
-                            "tocUrl" -> setOf("href", "content")
+                            "tocUrl", "nextTocUrl", "nextContentUrl" -> setOf("href", "content", "text")
                             "coverUrl" -> setOf("src", "href", "content")
                             else -> setOf("text", "html", "content")
                         }
