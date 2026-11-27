@@ -5,4 +5,19 @@
     <string name="tsubaki_import_txt_folder">TXT 小说文件夹</string>
     <string name="tsubaki_import_txt_folder_description">将所选文件夹中的 TXT 文件分别导入为独立书籍</string>
     <string name="tsubaki_import_partial_result">成功导入 %1$d 本，失败 %2$d 本</string>
+    <string name="tsubaki_legado_sources">Legado 书源（实验）</string>
+    <string name="tsubaki_legado_loading">处理中…</string>
+    <string name="tsubaki_legado_notice">仅导入可信的 JSON 书源。目前仅支持简单 CSS 规则，搜索会连接所选网站。</string>
+    <string name="tsubaki_legado_import">导入 JSON</string>
+    <string name="tsubaki_legado_review">审核导入书源（%1$d）</string>
+    <string name="tsubaki_legado_save">保存书源</string>
+    <string name="tsubaki_legado_clear">清空导入预览</string>
+    <string name="tsubaki_legado_saved">已保存书源（%1$d）</string>
+    <string name="tsubaki_legado_remove">移除</string>
+    <string name="tsubaki_legado_search">搜索</string>
+    <string name="tsubaki_legado_query">书名或关键词</string>
+    <string name="tsubaki_legado_back">返回</string>
+    <string name="tsubaki_legado_chapter_count">章节数：%1$d</string>
+    <string name="tsubaki_legado_preview">正文预览（非正式阅读器）</string>
+    <string name="tsubaki_legado_preview_limit">预览仅显示前 200 章</string>
 </resources>

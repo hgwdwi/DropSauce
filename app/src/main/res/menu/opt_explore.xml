@@ -14,4 +14,6 @@
 		android:title="@string/extension_settings"
 		android:titleCondensed="@string/settings" />
 
+	<item android:id="@+id/action_legado_sources" android:title="@string/tsubaki_legado_sources" />
+
 </menu>

@@ -10,6 +10,7 @@ import org.koitharu.kotatsu.core.nav.AppRouter
 class ExploreMenuProvider(
 	private val router: AppRouter,
 	private val onLanguageFilterClick: () -> Unit,
+	private val onLegadoClick: () -> Unit,
 ) : MenuProvider {
 
 	override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -25,6 +26,11 @@ class ExploreMenuProvider(
 
 			R.id.action_language_filter -> {
 				onLanguageFilterClick()
+				true
+			}
+
+			R.id.action_legado_sources -> {
+				onLegadoClick()
 				true
 			}
 
