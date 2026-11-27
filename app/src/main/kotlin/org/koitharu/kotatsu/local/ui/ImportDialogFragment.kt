@@ -68,12 +68,12 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 				index = 0,
 				count = 2,
 				icon = R.drawable.ic_file_zip,
-				title = R.string.comics_archive,
-				subtitle = R.string.comics_archive_import_description,
+				title = R.string.tsubaki_import_books,
+				subtitle = R.string.tsubaki_import_books_description,
 			) {
 				launch(
 					importFileCall.tryLaunch(
-						arrayOf("application/zip", "application/x-cbz", "application/vnd.comicbook-rar", "application/x-cbr", "application/pdf", "application/epub+zip", "*/*"),
+						arrayOf("application/zip", "application/x-cbz", "application/vnd.comicbook-rar", "application/x-cbr", "application/pdf", "application/epub+zip", "text/plain", "*/*"),
 					),
 				)
 			}
@@ -178,7 +178,7 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 	private fun Uri.isSupportedArchiveFile(): Boolean {
 		return runCatching {
 			val name = storageManager.contentResolver.resolveName(this)
-			!name.isNullOrBlank() && isSupportedArchive(name)
+			!name.isNullOrBlank() && (isSupportedArchive(name) || name.endsWith(".txt", ignoreCase = true))
 		}.getOrDefault(false)
 	}
 }
