@@ -30,6 +30,15 @@ internal object TxtNovelConverter {
         RegexOption.IGNORE_CASE,
     )
 
+    // Many Chinese web novels omit a separator: 第一章初见. Limit this
+    // fallback to short lines without sentence-ending punctuation.
+    private val compactHeading = Regex(
+        """^第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集][^\s　：:、.．\-，。！？；!?;]{1,32}$""",
+    )
+
+    private fun isHeading(line: String): Boolean =
+        line.length in 1..80 && (heading.matches(line) || compactHeading.matches(line))
+
     fun read(input: InputStream): String {
         val bytes = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(8192)
@@ -74,6 +83,7 @@ internal object TxtNovelConverter {
         var title = "正文"
         var hasHeading = false
         val body = StringBuilder()
+        var hasBodyLine = false
 
         fun flush() {
             val value = body.toString()
@@ -98,17 +108,19 @@ internal object TxtNovelConverter {
                 }
             }
             body.setLength(0)
+            hasBodyLine = false
         }
 
         for (line in text.lineSequence()) {
             val trimmed = line.trim().trim('\u3000')
-            if (trimmed.length in 1..80 && heading.matches(trimmed)) {
+            if (isHeading(trimmed)) {
                 flush()
                 title = trimmed
                 hasHeading = true
             } else {
-                if (body.isNotEmpty()) body.append('\n')
+                if (hasBodyLine) body.append('\n')
                 body.append(line)
+                hasBodyLine = true
             }
         }
         flush()
@@ -144,7 +156,7 @@ internal object TxtNovelConverter {
                 spine.append("""<itemref idref="$item"/>""")
                 navigation.append("""<li><a href="$href">$label</a></li>""")
                 val paragraphs = chapter.body.lineSequence().joinToString("") { line ->
-                    if (line.isBlank()) "<p>&#160;</p>" else "<p>" + xml(line) + "</p>"
+                    if (line.isBlank()) "<p>&#160;</p>" else "<p>" + paragraphXml(line) + "</p>"
                 }
                 zip.putText("EPUB/$href",
                     """<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh"><head><title>$label</title><meta charset="UTF-8"/><style>p { white-space: pre-wrap; overflow-wrap: break-word; }</style></head><body><h1>$label</h1>$paragraphs</body></html>""")
@@ -161,6 +173,17 @@ internal object TxtNovelConverter {
         putNextEntry(ZipEntry(path))
         write(content.toByteArray(Charsets.UTF_8))
         closeEntry()
+    }
+
+    // Native HtmlCompat collapses runs of ordinary whitespace. Encode only
+    // leading ASCII indentation as nonbreaking spaces; preserve full-width
+    // spaces and ordinary body text.
+    private fun paragraphXml(line: String): String {
+        val leading = line.takeWhile { it == ' ' || it == '\t' }
+        return buildString {
+            for (ch in leading) repeat(if (ch == '\t') 4 else 1) { append("&#160;") }
+            append(xml(line.substring(leading.length)))
+        }
     }
 
     private fun xml(value: String): String = buildString {

@@ -51,6 +51,32 @@ class TxtNovelConverterTest {
         assertEquals("", chapters.first().body)
     }
 
+    @Test
+    fun detectsCompactChineseHeadingAndKeepsNarrativeSentence() {
+        val chapters = TxtNovelConverter.chapters("第一章初见\n\n第一章里发生了很多事情。\n第二章重逢\n正文")
+        assertEquals(listOf("第一章初见", "第二章重逢"), chapters.map { it.title })
+        assertEquals("\n第一章里发生了很多事情。", chapters.first().body)
+    }
+
+    @Test
+    fun preservesLeadingAsciiIndentationInXhtml() {
+        val out = ByteArrayOutputStream()
+        TxtNovelConverter.writeEpub("书", listOf(
+            TxtNovelConverter.Chapter("正文", "  第一段\n\t第二段\n　　第三段"),
+        ), out)
+        ZipInputStream(ByteArrayInputStream(out.toByteArray())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: error("Missing chapter")
+                if (entry.name != "EPUB/ch1.xhtml") continue
+                val xhtml = zip.readBytes().toString(Charsets.UTF_8)
+                assertTrue(xhtml.contains("<p>&#160;&#160;第一段</p>"))
+                assertTrue(xhtml.contains("<p>&#160;&#160;&#160;&#160;第二段</p>"))
+                assertTrue(xhtml.contains("<p>　　第三段</p>"))
+                break
+            }
+        }
+    }
+
     @Test(expected = IOException::class)
     fun rejectsEmptyText() {
         TxtNovelConverter.decode("  \n".toByteArray())
