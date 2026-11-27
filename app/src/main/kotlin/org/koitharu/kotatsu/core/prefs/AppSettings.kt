@@ -420,12 +420,12 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
 	/** Explore puts the novel sources on the left (and opens there) instead of manga. */
 	var isNovelTabFirst: Boolean
-		get() = prefs.getBoolean(KEY_EXPLORE_NOVEL_TAB_FIRST, false)
+		get() = prefs.getBoolean(KEY_EXPLORE_NOVEL_TAB_FIRST, true)
 		set(value) = prefs.edit { putBoolean(KEY_EXPLORE_NOVEL_TAB_FIRST, value) }
 
 	/** Explore shows only its first tab's kind; the tab itself stays so the long-press menu is reachable. */
 	var isExploreSingleKind: Boolean
-		get() = prefs.getBoolean(KEY_EXPLORE_SINGLE_KIND, false)
+		get() = prefs.getBoolean(KEY_EXPLORE_SINGLE_KIND, true)
 		set(value) = prefs.edit { putBoolean(KEY_EXPLORE_SINGLE_KIND, value) }
 
 	var isEpubBionicReadingEnabled: Boolean
