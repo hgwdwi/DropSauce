@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tsubaki_import_books">书籍与压缩包</string>
+    <string name="tsubaki_import_books_description">导入 TXT、EPUB、PDF 及支持的压缩包</string>
+</resources>
