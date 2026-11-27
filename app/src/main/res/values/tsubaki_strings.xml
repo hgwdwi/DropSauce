@@ -2,4 +2,7 @@
 <resources>
     <string name="tsubaki_import_books">Books and archives</string>
     <string name="tsubaki_import_books_description">Import TXT, EPUB, PDF and supported archives</string>
+    <string name="tsubaki_import_txt_folder">TXT folder</string>
+    <string name="tsubaki_import_txt_folder_description">Import each TXT file in the selected folder as a separate book</string>
+    <string name="tsubaki_import_partial_result">Imported %1$d books; %2$d failed</string>
 </resources>

@@ -53,6 +53,10 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 		startImport(listOfNotNull(it))
 	}
 
+	private val importTxtDirCall = OpenDocumentTreeHelper(this) {
+		startImport(listOfNotNull(it), textFolder = true)
+	}
+
 	@Composable
 	override fun Content() {
 		ExpressiveDialogCard(
@@ -66,7 +70,7 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 		) {
 			ImportChoice(
 				index = 0,
-				count = 2,
+				count = 3,
 				icon = R.drawable.ic_file_zip,
 				title = R.string.tsubaki_import_books,
 				subtitle = R.string.tsubaki_import_books_description,
@@ -80,12 +84,22 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 			Spacer(Modifier.height(2.dp))
 			ImportChoice(
 				index = 1,
-				count = 2,
+				count = 3,
 				icon = R.drawable.ic_folder_file,
 				title = R.string.folder_with_images,
 				subtitle = R.string.folder_with_images_import_description,
 			) {
 				launch(importDirCall.tryLaunch(null))
+			}
+			Spacer(Modifier.height(2.dp))
+			ImportChoice(
+				index = 2,
+				count = 3,
+				icon = R.drawable.ic_folder_file,
+				title = R.string.tsubaki_import_txt_folder,
+				subtitle = R.string.tsubaki_import_txt_folder_description,
+			) {
+				launch(importTxtDirCall.tryLaunch(null))
 			}
 		}
 	}
@@ -147,7 +161,7 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 		}
 	}
 
-	private fun startImport(uris: Collection<Uri>) {
+	private fun startImport(uris: Collection<Uri>, textFolder: Boolean = false) {
 		if (uris.isEmpty()) {
 			return
 		}
@@ -159,7 +173,7 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 			storageManager.takePermissions(it)
 		}
 		val ctx = requireContext()
-		val msg = if (ImportService.start(ctx, uris)) {
+		val msg = if (ImportService.start(ctx, uris, textFolder)) {
 			R.string.import_will_start_soon
 		} else {
 			R.string.error_occurred

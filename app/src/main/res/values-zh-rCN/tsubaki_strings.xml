@@ -2,4 +2,7 @@
 <resources>
     <string name="tsubaki_import_books">书籍与压缩包</string>
     <string name="tsubaki_import_books_description">导入 TXT、EPUB、PDF 及支持的压缩包</string>
+    <string name="tsubaki_import_txt_folder">TXT 小说文件夹</string>
+    <string name="tsubaki_import_txt_folder_description">将所选文件夹中的 TXT 文件分别导入为独立书籍</string>
+    <string name="tsubaki_import_partial_result">成功导入 %1$d 本，失败 %2$d 本</string>
 </resources>

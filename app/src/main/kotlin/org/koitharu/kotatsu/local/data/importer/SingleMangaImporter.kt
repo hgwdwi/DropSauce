@@ -55,6 +55,36 @@ class SingleMangaImporter @Inject constructor(
 		return result
 	}
 
+	data class TextFolderResult(val books: List<LocalManga>, val failedCount: Int)
+
+	/** Import only top-level TXT documents; each becomes an independent local book. */
+	suspend fun importTextFolder(uri: Uri): TextFolderResult = withContext(Dispatchers.IO) {
+		val root = DocumentFile.fromTreeUri(context, uri)
+			?: throw IOException("Cannot open TXT folder")
+		val files = root.listFiles().filter {
+			it.isFile && it.name?.endsWith(".txt", ignoreCase = true) == true
+		}.sortedBy { it.name.orEmpty() }
+		if (files.isEmpty()) throw IOException("No TXT files in selected folder")
+		val books = ArrayList<LocalManga>()
+		var failed = 0
+		var firstFailure: Throwable? = null
+		for (file in files) {
+			val result = runCatchingCancellable { importTextNovel(file.uri, file.requireName()) }
+			val book = result.getOrNull()
+			if (book != null) {
+				books.add(book)
+				localStorageChanges.emit(book)
+			} else {
+				failed++
+				val error = result.exceptionOrNull()
+				if (firstFailure == null) firstFailure = error
+				error?.printStackTraceDebug()
+			}
+		}
+		if (books.isEmpty()) throw IOException("No TXT files could be imported", firstFailure)
+		TextFolderResult(books, failed)
+	}
+
 	private suspend fun importFile(uri: Uri): LocalManga = withContext(Dispatchers.IO) {
 		val contentResolver = storageManager.contentResolver
 		val name = contentResolver.resolveName(uri) ?: throw IOException("Cannot fetch name from uri: $uri")
