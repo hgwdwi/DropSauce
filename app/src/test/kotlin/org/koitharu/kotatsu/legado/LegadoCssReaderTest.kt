@@ -55,8 +55,16 @@ class LegadoCssReaderTest {
     @Test fun textModePreservesExplicitLineBreaks() {
         val result = reader("@css:#content@text").chapterHtml(
             """<div id="content">第一行<br>第二行</div>""", "https://example.com/book/1.html")
-        assertTrue(result.contains("第一行<br>") || result.contains("第一行<br />"))
-        assertTrue(result.contains("第二行"))
+        val body = org.jsoup.Jsoup.parseBodyFragment(result).body()
+        assertEquals(1, body.select("br").size)
+        assertEquals("第一行\n第二行", LegadoTextExtractor.extract(body))
+    }
+
+    @Test fun extractsBlockBoundariesWithoutDuplicatingExplicitBreaks() {
+        val body = org.jsoup.Jsoup.parseBodyFragment(
+            "<div><p>第一段<br>第二行</p><p>第二段<br><br>尾声</p></div>"
+        ).body()
+        assertEquals("第一段\n第二行\n第二段\n\n尾声", LegadoTextExtractor.extract(body))
     }
 
     @Test(expected = IllegalArgumentException::class)

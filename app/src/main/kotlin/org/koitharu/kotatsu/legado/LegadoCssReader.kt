@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.Document
 import org.jsoup.safety.Safelist
 import java.net.URI
 import java.net.URLEncoder
@@ -68,14 +69,14 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
             "html" -> selected.joinToString("\n") { it.html() }
             "text" -> selected.joinToString("\n") {
                 // TextNode / Element.text() would flatten all paragraphs.
-                "<p>" + org.jsoup.nodes.Entities.escape(it.wholeText()).replace("\n", "<br>") + "</p>"
+                "<p>" + org.jsoup.nodes.Entities.escape(LegadoTextExtractor.extract(it)).replace("\n", "<br>") + "</p>"
             }
             else -> error("Body rule must extract text or HTML")
         }
         val cleaned = Jsoup.clean(fragment, pageUrl, Safelist.none().addTags(
             "p", "br", "div", "span", "h1", "h2", "h3", "h4", "strong", "b",
             "em", "i", "u", "blockquote", "hr", "ul", "ol", "li", "ruby", "rt", "rp",
-        ))
+        ), Document.OutputSettings().prettyPrint(false))
         require(Jsoup.parseBodyFragment(cleaned).text().isNotBlank()) { "Chapter has no readable text" }
         return cleaned
     }

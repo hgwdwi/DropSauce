@@ -279,12 +279,7 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
     }
 
     private fun chapterText(html: String): String {
-        val body = org.jsoup.Jsoup.parseBodyFragment(html).body()
-        body.select("br").forEach { it.after(org.jsoup.nodes.TextNode("\n")) }
-        body.select("p,div,h1,h2,h3,h4,li,blockquote").forEach {
-            it.appendChild(org.jsoup.nodes.TextNode("\n"))
-        }
-        return body.wholeText().trim().also {
+        return LegadoTextExtractor.extract(org.jsoup.Jsoup.parseBodyFragment(html).body()).trim().also {
             require(it.isNotBlank() && it.length <= 2_000_000) { "Empty or oversized chapter" }
         }
     }
