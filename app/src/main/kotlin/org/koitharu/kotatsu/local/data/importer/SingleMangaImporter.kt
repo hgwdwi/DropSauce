@@ -27,6 +27,7 @@ import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.local.data.isSupportedArchive
 import org.koitharu.kotatsu.local.data.input.LocalMangaParser
+import org.koitharu.kotatsu.local.data.input.TxtNovelConverter
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import java.io.File
@@ -57,6 +58,9 @@ class SingleMangaImporter @Inject constructor(
 	private suspend fun importFile(uri: Uri): LocalManga = withContext(Dispatchers.IO) {
 		val contentResolver = storageManager.contentResolver
 		val name = contentResolver.resolveName(uri) ?: throw IOException("Cannot fetch name from uri: $uri")
+		if (name.endsWith(".txt", ignoreCase = true)) {
+			return@withContext importTextNovel(uri, name)
+		}
 		if (!isSupportedArchive(name)) {
 			throw UnsupportedFileException("Unsupported file $name on $uri")
 		}
@@ -73,6 +77,34 @@ class SingleMangaImporter @Inject constructor(
 			}
 		}.let { if (hasRarExtension(name)) runInterruptible { it.repackRarToCbz() } else it }
 		LocalMangaParser(dest).getManga(withDetails = false)
+	}
+
+	private suspend fun importTextNovel(uri: Uri, name: String): LocalManga {
+		val directory = getOutputDir()
+		val title = name.substringAfterLast('/').substringAfterLast('\\')
+			.substringBeforeLast('.').trim().ifBlank { "未命名小说" }
+		val stage = File.createTempFile("txt_import_", ".tmp", directory)
+		var destination: File? = null
+		try {
+			runInterruptible(Dispatchers.IO) {
+				val input = contentResolver.openInputStream(uri)
+					?: throw IOException("Cannot open TXT document")
+				val text = input.use { TxtNovelConverter.read(it) }
+				val chapters = TxtNovelConverter.chapters(text)
+				stage.outputStream().use { TxtNovelConverter.writeEpub(title, chapters, it) }
+			}
+			val output = uniqueFile(directory, "$title.epub")
+			if (!stage.renameTo(output)) {
+				throw IOException("Cannot move converted EPUB into library")
+			}
+			destination = output
+			return LocalMangaParser(output).getManga(withDetails = false)
+		} catch (e: Exception) {
+			destination?.delete()
+			throw e
+		} finally {
+			stage.delete()
+		}
 	}
 
 	/**
