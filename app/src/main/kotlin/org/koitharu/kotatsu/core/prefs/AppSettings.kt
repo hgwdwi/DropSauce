@@ -164,7 +164,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() {
 			val raw = prefs.getString(KEY_NAV_MAIN, null)?.split(',')
 			val items = if (raw.isNullOrEmpty()) {
-				listOf(NavItem.FAVORITES, NavItem.FEED, NavItem.HISTORY, NavItem.EXPLORE)
+				listOf(NavItem.FAVORITES, NavItem.LOCAL, NavItem.EXPLORE, NavItem.HISTORY)
 			} else {
 				raw.mapNotNull { x -> NavItem.entries.find(x) }.ifEmpty { listOf(NavItem.EXPLORE) }
 			}
@@ -420,12 +420,12 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
 	/** Explore puts the novel sources on the left (and opens there) instead of manga. */
 	var isNovelTabFirst: Boolean
-		get() = prefs.getBoolean(KEY_EXPLORE_NOVEL_TAB_FIRST, false)
+		get() = prefs.getBoolean(KEY_EXPLORE_NOVEL_TAB_FIRST, true)
 		set(value) = prefs.edit { putBoolean(KEY_EXPLORE_NOVEL_TAB_FIRST, value) }
 
 	/** Explore shows only its first tab's kind; the tab itself stays so the long-press menu is reachable. */
 	var isExploreSingleKind: Boolean
-		get() = prefs.getBoolean(KEY_EXPLORE_SINGLE_KIND, false)
+		get() = prefs.getBoolean(KEY_EXPLORE_SINGLE_KIND, true)
 		set(value) = prefs.edit { putBoolean(KEY_EXPLORE_SINGLE_KIND, value) }
 
 	var isEpubBionicReadingEnabled: Boolean

@@ -1,0 +1,40 @@
+name: TsubakiReader debug APK
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch native dependencies
+        run: |
+          git submodule update --init --depth 1 app/src/main/cpp/libjxl
+          git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Set up Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android toolchain
+        run: |
+          sdkmanager --version
+          sdkmanager --list --channel=3 > "$RUNNER_TEMP/sdk-packages.txt"
+          grep -E 'platforms;android-(37|CinnamonBun)|ndk;28.2.13676358|cmake;3.31.6' "$RUNNER_TEMP/sdk-packages.txt" || true
+          sdkmanager --install --channel=3 'platforms;android-37.0' 'ndk;28.2.13676358' 'cmake;3.31.6'
+      - name: Build and run unit tests
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleGithubDebug :app:testGithubDebugUnitTest --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TsubakiReader-debug
+          path: app/build/outputs/apk/github/debug/*.apk
+          if-no-files-found: error

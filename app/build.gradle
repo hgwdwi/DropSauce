@@ -28,7 +28,7 @@ android {
 	}
 
 	defaultConfig {
-		applicationId = 'org.haziffe.dropsauce'
+		applicationId = 'io.github.hgwdwi.tsubakireader'
 		minSdk = 26
 		targetSdk = 37
 		versionCode = 84
