@@ -36,7 +36,7 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
         val details = reader.details(book, detailHtml, book.url)
         val tocHtml = if (details.tocUrl == book.url) detailHtml else fetch(details.tocUrl)
         val pages = LegadoPagination.collect(details.tocUrl, tocHtml, 20, ::fetch,
-            reader::chapters, reader::nextDirectoryUrls)
+            { html, url -> reader.chapters(html, url, details.book.variables) }, reader::nextDirectoryUrls)
         val chapters = pages.flatten().distinctBy { it.url }
         require(chapters.size <= 10000) { "Directory exceeds chapter limit" }
         return BookDirectory(details.book, if (reader.reverseDirectory()) chapters.reversed() else chapters)
@@ -46,7 +46,7 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
 
     suspend fun content(chapter: LegadoCssReader.Chapter): String {
         val pages = LegadoPagination.collect(chapter.url, limit = 10, fetch = ::fetch,
-            extract = reader::chapterHtml, next = reader::nextContentUrls)
+            extract = { html, url -> reader.chapterHtml(html, url, chapter.variables) }, next = reader::nextContentUrls)
         val html = pages.joinToString("\n")
         require(html.length <= 4 * 1024 * 1024) { "Combined chapter exceeds size limit" }
         return reader.cleanCombinedContent(html)

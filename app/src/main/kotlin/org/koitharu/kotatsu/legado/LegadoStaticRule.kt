@@ -17,17 +17,18 @@ internal class LegadoStaticRule private constructor(
     private val operator: String?,
     private val list: Boolean,
     private val replacement: LegadoReplacement?,
+    private val writes: Map<String, LegadoStaticRule> = emptyMap(),
 ) {
-    private enum class Mode { CSS, DEFAULT, XPATH, JSON }
+    private enum class Mode { CSS, DEFAULT, XPATH, JSON, VARIABLE }
     private data class Branch(val mode: Mode, val expression: String, val extraction: String?)
     private data class Step(val selector: String, val index: Int?)
     val extraction: String? get() = branches.firstOrNull()?.extraction
 
-    fun elements(root: Any): List<Any> = evaluate(root, false)
+    fun elements(root: Any, variables: LegadoVariables = LegadoVariables()): List<Any> = evaluate(root, false, variables)
 
-    fun values(root: Any): List<String> = evaluate(root, false).mapNotNull { it.asText() }.map { replacement?.apply(it) ?: it }
+    fun values(root: Any, variables: LegadoVariables = LegadoVariables()): List<String> = evaluate(root, false, variables).mapNotNull { it.asText() }.map { replacement?.apply(it) ?: it }
 
-    fun body(root: Any): String = evaluate(root, true).mapNotNull { value ->
+    fun body(root: Any, variables: LegadoVariables = LegadoVariables()): String = evaluate(root, true, variables).mapNotNull { value ->
         when (value) {
             is Html -> replacement?.apply(value.value) ?: value.value
             else -> value.asText()?.let { "<p>" + Entities.escape(replacement?.apply(it) ?: it).replace("\n", "<br>") + "</p>" }
@@ -46,13 +47,16 @@ internal class LegadoStaticRule private constructor(
         else -> null
     }
 
-    private fun evaluate(root: Any, body: Boolean): List<Any> {
+    private fun evaluate(root: Any, body: Boolean, variables: LegadoVariables): List<Any> {
+        for ((key, rule) in writes) variables.put(key, rule.values(root, variables).firstOrNull().orEmpty())
         val out = ArrayList<Any>()
+        val groups = ArrayList<List<Any>>()
         for (branch in branches) {
             val result = when (branch.mode) {
                 Mode.JSON -> jsonPath(root, branch.expression)
+                Mode.VARIABLE -> listOfNotNull(variables.get(branch.expression))
                 Mode.CSS, Mode.DEFAULT, Mode.XPATH -> {
-                    val element = root as? Element ?: return emptyList()
+                    val element = root as? Element ?: continue
                     val selected = when (branch.mode) {
                         Mode.CSS -> if (branch.expression.isEmpty()) listOf(element) else element.select(branch.expression)
                         Mode.XPATH -> element.selectXpath(branch.expression)
@@ -73,15 +77,24 @@ internal class LegadoStaticRule private constructor(
             }.take(MAX_RESULTS)
             val usable = if (list) result else result.filter { !it.asText().isNullOrBlank() }
             if (operator == "||" && usable.isNotEmpty()) return usable
+            if (operator == "%%") { groups.add(usable); continue }
             out.addAll(usable.take(MAX_RESULTS - out.size))
             if (out.size >= MAX_RESULTS) break
+        }
+        if (operator == "%%" && groups.isNotEmpty()) {
+            for (i in groups[0].indices) {
+                for (group in groups) {
+                    group.getOrNull(i)?.let { out.add(it) }
+                    if (out.size >= MAX_RESULTS) return out
+                }
+            }
         }
         return out
     }
 
     companion object {
         private const val MAX_RESULTS = 10000
-        private val blocked = listOf("@js:", "<js>", "{{", "@get:", "@put:", "%%", "@regex:")
+        private val blocked = listOf("@js:", "<js>", "{{", "@regex:")
         private val extractors = setOf("text", "ownText", "textNodes", "html", "all", "href", "src", "content", "title", "data-src", "data-original")
         private val jsonToken = Regex("""(?:\.([A-Za-z_][A-Za-z0-9_-]*)|\['([^']+)'\]|\["([^"]+)"\]|\[(-?\d+|\*)\])""")
         private val defaultStep = Regex("""(class|id|tag|text)\.([^@.]+)(?:\.(-?\d+))?""")
@@ -89,16 +102,23 @@ internal class LegadoStaticRule private constructor(
 
         fun parse(raw: String, list: Boolean): LegadoStaticRule {
             require(raw.length in 1..2048 && blocked.none { raw.contains(it, true) }) { "Unsupported dynamic rule" }
-            val delimiter = raw.indexOf("##")
+            val (ruleText, writes) = parseWrites(raw)
+            val delimiter = ruleText.indexOf("##")
             require(!list || delimiter < 0) { "Replacement is not a list rule" }
-            val replacement = if (delimiter >= 0) LegadoReplacement.parse(raw.substring(delimiter)) else null
-            val selector = if (delimiter >= 0) raw.substring(0, delimiter).ifBlank { "all" } else raw
+            val replacement = if (delimiter >= 0) LegadoReplacement.parse(ruleText.substring(delimiter)) else null
+            val selector = if (delimiter >= 0) ruleText.substring(0, delimiter).ifBlank { "all" } else ruleText
             val (parts, op) = split(selector)
             require(parts.size <= 16)
-            val branches = parts.map { part ->
+            val branches = parts.filter { it.isNotBlank() }.map { part ->
                 val rule = part.trim()
                 require(rule.isNotEmpty())
                 when {
+                    rule.startsWith("@get:", true) -> {
+                        require(!list)
+                        val key = rule.substring(5).removePrefix("{").removeSuffix("}")
+                        require(LegadoVariables.validKey(key))
+                        Branch(Mode.VARIABLE, key, null)
+                    }
                     rule.startsWith("@json:", true) || rule.startsWith("$.") || rule.startsWith("$[") || rule == "$" -> {
                         val expression = if (rule.startsWith("@json:", true)) rule.substring(6).trim() else rule
                         validateJsonPath(expression)
@@ -135,7 +155,45 @@ internal class LegadoStaticRule private constructor(
                     }
                 }
             }
-            return LegadoStaticRule(branches, op, list, replacement)
+            require(branches.isNotEmpty() || writes.isNotEmpty())
+            return LegadoStaticRule(branches, op, list, replacement, writes)
+        }
+
+        /** Strict JSON object form of @put, with static selectors only. */
+        private fun parseWrites(raw: String): Pair<String, Map<String, LegadoStaticRule>> {
+            val start = raw.indexOf("@put:", ignoreCase = true)
+            if (start < 0) return raw to emptyMap()
+            require(start == 0 || raw.substring(0, start).isNotBlank())
+            val begin = start + 5
+            require(raw.getOrNull(begin) == '{')
+            var depth = 0
+            var quoted = false
+            var escaped = false
+            var end = -1
+            for (i in begin until raw.length) {
+                val ch = raw[i]
+                if (escaped) escaped = false
+                else if (quoted && ch == '\\') escaped = true
+                else if (ch == '"') quoted = !quoted
+                else if (!quoted && ch == '{') depth++
+                else if (!quoted && ch == '}') {
+                    depth--
+                    if (depth == 0) { end = i + 1; break }
+                }
+            }
+            require(end > begin)
+            val map = Json.parseToJsonElement(raw.substring(begin, end)) as? JsonObject
+                ?: error("Invalid @put object")
+            require(map.size in 1..16)
+            val writes = map.entries.associate { (key, value) ->
+                require(LegadoVariables.validKey(key) && value is JsonPrimitive && value.isString)
+                val selector = value.content
+                require(!selector.contains("@put:", true) && !selector.contains("@get:", true))
+                key to parse(selector, false)
+            }
+            val remaining = (raw.substring(0, start) + raw.substring(end)).trim()
+            require(!remaining.contains("@put:", true))
+            return remaining to writes
         }
 
         /** Split only top-level operators, not CSS attributes or quoted XPath predicates. */
@@ -155,7 +213,7 @@ internal class LegadoStaticRule private constructor(
                 else if (ch == '\'' || ch == '"') quote = ch
                 else if (ch == '[' || ch == '(') depth++
                 else if (ch == ']' || ch == ')') depth--
-                else if (depth == 0 && i + 1 < raw.length && raw.substring(i, i + 2) in setOf("&&", "||")) {
+                else if (depth == 0 && i + 1 < raw.length && raw.substring(i, i + 2) in setOf("&&", "||", "%%")) {
                     val op = raw.substring(i, i + 2)
                     require(operator == null || operator == op) { "Mixed rule operators unsupported" }
                     operator = op

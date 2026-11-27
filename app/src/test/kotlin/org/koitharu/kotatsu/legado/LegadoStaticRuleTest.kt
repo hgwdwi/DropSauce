@@ -49,6 +49,19 @@ class LegadoStaticRuleTest {
         Unit
     }
 
+    @Test fun interleavesRuleResults() {
+        val root = Jsoup.parse("<i>甲</i><b>乙</b><i>丙</i><b>丁</b>")
+        assertEquals(listOf("甲", "乙", "丙", "丁"), LegadoStaticRule.parse("@css:i@text%%@css:b@text", false).values(root))
+    }
+
+    @Test fun localVariablesAreIsolated() {
+        val root = Jsoup.parse("<a href='/one'>甲</a>")
+        val scope = LegadoVariables()
+        assertEquals(listOf("/one"), LegadoStaticRule.parse("""@put:{"url":"@css:a@href"}@get:{url}""", false).values(root, scope))
+        assertEquals(listOf("/one"), LegadoStaticRule.parse("@get:{url}", false).values(root, scope))
+        assertTrue(LegadoStaticRule.parse("@get:{url}", false).values(root, LegadoVariables()).isEmpty())
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsScripts() {
         LegadoStaticRule.parse("@js:java.get('x')", false)

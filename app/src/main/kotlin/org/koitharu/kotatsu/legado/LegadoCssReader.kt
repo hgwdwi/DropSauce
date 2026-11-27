@@ -21,9 +21,9 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         require(source.supportedSubset && source.enabled) { "Source is disabled or unsupported" }
     }
 
-    data class Book(val title: String, val url: String, val author: String? = null, val intro: String? = null, val lastChapter: String? = null, val kind: String? = null, val wordCount: String? = null, val coverUrl: String? = null)
+    data class Book(val title: String, val url: String, val author: String? = null, val intro: String? = null, val lastChapter: String? = null, val kind: String? = null, val wordCount: String? = null, val coverUrl: String? = null, val variables: Map<String, String> = emptyMap())
     data class Details(val book: Book, val tocUrl: String)
-    data class Chapter(val title: String, val url: String)
+    data class Chapter(val title: String, val url: String, val variables: Map<String, String> = emptyMap())
 
     fun searchRequest(query: String, page: Int = 1): LegadoRequestRule.Spec =
         LegadoRequestRule.search(source.original, query, page)
@@ -36,32 +36,36 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         val names = rule("ruleSearch", "name")
         val urls = rule("ruleSearch", "bookUrl")
         return rows.asSequence().mapNotNull { row ->
-            val name = first(names, row) ?: return@mapNotNull null
-            val url = first(urls, row)?.let { resolve(pageUrl, it) } ?: return@mapNotNull null
+            val vars = LegadoVariables()
+            val name = first(names, row, vars) ?: return@mapNotNull null
+            val url = first(urls, row, vars)?.let { resolve(pageUrl, it) } ?: return@mapNotNull null
             Book(name, url,
-                metadata("ruleSearch", "author", row), metadata("ruleSearch", "intro", row),
-                metadata("ruleSearch", "lastChapter", row), metadata("ruleSearch", "kind", row),
-                metadata("ruleSearch", "wordCount", row),
-                optionalValue("ruleSearch", "coverUrl", row)?.let { resolve(pageUrl, it) },
+                metadata("ruleSearch", "author", row, vars), metadata("ruleSearch", "intro", row, vars),
+                metadata("ruleSearch", "lastChapter", row, vars), metadata("ruleSearch", "kind", row, vars),
+                metadata("ruleSearch", "wordCount", row, vars),
+                optionalValue("ruleSearch", "coverUrl", row, vars)?.let { resolve(pageUrl, it) },
+                vars.snapshot(),
             )
         }.distinctBy { it.url }.take(MAX_ROWS).toList()
     }
 
     fun details(book: Book, html: String, pageUrl: String): Details {
         val doc = document(html, pageUrl)
+        val vars = LegadoVariables(book.variables)
         val tocRule = optionalRule("ruleBookInfo", "tocUrl")
         val toc = if (tocRule == null) pageUrl else {
-            val link = first(tocRule, doc) ?: error("Directory link not found")
+            val link = first(tocRule, doc, vars) ?: error("Directory link not found")
             resolve(pageUrl, link) ?: error("Unsupported directory link")
         }
         return Details(book.copy(
-            title = metadata("ruleBookInfo", "name", doc) ?: book.title,
-            author = metadata("ruleBookInfo", "author", doc) ?: book.author,
-            intro = metadata("ruleBookInfo", "intro", doc) ?: book.intro,
-            lastChapter = metadata("ruleBookInfo", "lastChapter", doc) ?: book.lastChapter,
-            kind = metadata("ruleBookInfo", "kind", doc) ?: book.kind,
-            wordCount = metadata("ruleBookInfo", "wordCount", doc) ?: book.wordCount,
-            coverUrl = optionalValue("ruleBookInfo", "coverUrl", doc)?.let { resolve(pageUrl, it) } ?: book.coverUrl,
+            title = metadata("ruleBookInfo", "name", doc, vars) ?: book.title,
+            author = metadata("ruleBookInfo", "author", doc, vars) ?: book.author,
+            intro = metadata("ruleBookInfo", "intro", doc, vars) ?: book.intro,
+            lastChapter = metadata("ruleBookInfo", "lastChapter", doc, vars) ?: book.lastChapter,
+            kind = metadata("ruleBookInfo", "kind", doc, vars) ?: book.kind,
+            wordCount = metadata("ruleBookInfo", "wordCount", doc, vars) ?: book.wordCount,
+            coverUrl = optionalValue("ruleBookInfo", "coverUrl", doc, vars)?.let { resolve(pageUrl, it) } ?: book.coverUrl,
+            variables = vars.snapshot(),
         ), toc)
     }
 
@@ -69,12 +73,12 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         (source.original[group] as? JsonObject)?.string(field)?.takeIf { it.isNotBlank() }
             ?.let { LegadoStaticRule.parse(it, false) }
 
-    private fun optionalValue(group: String, field: String, root: Any): String? =
-        optionalRule(group, field)?.let { first(it, root) }
+    private fun optionalValue(group: String, field: String, root: Any, vars: LegadoVariables): String? =
+        optionalRule(group, field)?.let { first(it, root, vars) }
 
     private fun metadata(group: String, field: String, root: Any): String? {
         val rule = optionalRule(group, field) ?: return null
-        val value = first(rule, root) ?: return null
+        val value = first(rule, root, vars) ?: return null
         return (if (rule.extraction == "html") Jsoup.parseBodyFragment(value).text() else value)
             .take(2000).takeIf { it.isNotBlank() }
     }
@@ -101,23 +105,24 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         return "<p>" + org.jsoup.nodes.Entities.escape(cleaned).replace("\n", "<br>") + "</p>"
     }
 
-    fun chapters(html: String, pageUrl: String): List<Chapter> {
+    fun chapters(html: String, pageUrl: String, bookVariables: Map<String, String> = emptyMap()): List<Chapter> {
         val doc = document(html, pageUrl)
         val rows = rule("ruleToc", "chapterList", true).elements(doc)
         val names = rule("ruleToc", "chapterName")
         val urls = rule("ruleToc", "chapterUrl")
         return rows.asSequence().mapNotNull { row ->
-            val name = first(names, row) ?: return@mapNotNull null
-            val url = first(urls, row)?.let { resolve(pageUrl, it) } ?: return@mapNotNull null
-            Chapter(name, url)
+            val vars = LegadoVariables(bookVariables)
+            val name = first(names, row, vars) ?: return@mapNotNull null
+            val url = first(urls, row, vars)?.let { resolve(pageUrl, it) } ?: return@mapNotNull null
+            Chapter(name, url, vars.snapshot())
         }.distinctBy { it.url }.take(MAX_ROWS).toList()
     }
 
-    fun chapterHtml(html: String, pageUrl: String): String {
+    fun chapterHtml(html: String, pageUrl: String, variables: Map<String, String> = emptyMap()): String {
         val doc = document(html, pageUrl)
         val extraction = rule("ruleContent", "content")
         if (doc is Element) doc.select("script,style,noscript,iframe,object,embed,form").remove()
-        val fragment = extraction.body(doc)
+        val fragment = extraction.body(doc, LegadoVariables(variables))
         require(fragment.isNotBlank()) { "Content selector found no matches" }
         val cleaned = Jsoup.clean(fragment, pageUrl, Safelist.none().addTags(
             "p", "br", "div", "span", "h1", "h2", "h3", "h4", "strong", "b",
@@ -140,8 +145,8 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         return LegadoStaticRule.parse(if (field == "chapterList") json.string(field).removePrefix("-") else json.string(field), list)
     }
 
-    private fun first(rule: LegadoStaticRule, row: Any): String? =
-        rule.values(row).firstOrNull { it.isNotBlank() }?.trim()
+    private fun first(rule: LegadoStaticRule, row: Any, vars: LegadoVariables = LegadoVariables()): String? =
+        rule.values(row, vars).firstOrNull { it.isNotBlank() }?.trim()
 
     private fun JsonObject.string(key: String): String =
         (get(key) as? JsonPrimitive)?.contentOrNull.orEmpty()
