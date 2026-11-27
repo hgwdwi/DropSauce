@@ -52,12 +52,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
     fun details(book: Book, html: String, pageUrl: String): Details {
         val doc = document(html, pageUrl)
         val vars = LegadoVariables(book.variables)
-        val tocRule = optionalRule("ruleBookInfo", "tocUrl")
-        val toc = if (tocRule == null) pageUrl else {
-            val link = first(tocRule, doc, vars) ?: error("Directory link not found")
-            resolve(pageUrl, link) ?: error("Unsupported directory link")
-        }
-        return Details(book.copy(
+        val updated = book.copy(
             title = metadata("ruleBookInfo", "name", doc, vars) ?: book.title,
             author = metadata("ruleBookInfo", "author", doc, vars) ?: book.author,
             intro = metadata("ruleBookInfo", "intro", doc, vars) ?: book.intro,
@@ -65,8 +60,13 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
             kind = metadata("ruleBookInfo", "kind", doc, vars) ?: book.kind,
             wordCount = metadata("ruleBookInfo", "wordCount", doc, vars) ?: book.wordCount,
             coverUrl = optionalValue("ruleBookInfo", "coverUrl", doc, vars)?.let { resolve(pageUrl, it) } ?: book.coverUrl,
-            variables = vars.snapshot(),
-        ), toc)
+        )
+        val tocRule = optionalRule("ruleBookInfo", "tocUrl")
+        val toc = if (tocRule == null) pageUrl else {
+            val link = first(tocRule, doc, vars) ?: error("Directory link not found")
+            resolve(pageUrl, link) ?: error("Unsupported directory link")
+        }
+        return Details(updated.copy(variables = vars.snapshot()), toc)
     }
 
     private fun optionalRule(group: String, field: String): LegadoStaticRule? =
@@ -76,7 +76,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
     private fun optionalValue(group: String, field: String, root: Any, vars: LegadoVariables): String? =
         optionalRule(group, field)?.let { first(it, root, vars) }
 
-    private fun metadata(group: String, field: String, root: Any): String? {
+    private fun metadata(group: String, field: String, root: Any, vars: LegadoVariables): String? {
         val rule = optionalRule(group, field) ?: return null
         val value = first(rule, root, vars) ?: return null
         return (if (rule.extraction == "html") Jsoup.parseBodyFragment(value).text() else value)

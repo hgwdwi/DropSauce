@@ -101,4 +101,37 @@ class LegadoCssReaderTest {
     fun rejectsEmptyChapter() {
         reader().chapterHtml("<div id='content'><script>bad()</script></div>", "https://example.com/book/1.html")
     }
+
+    @Test fun variablesFlowThroughBookAndChapterWithoutLeakage() {
+        val source = """
+            {
+              "bookSourceName":"Fixture",
+              "bookSourceUrl":"https://example.com",
+              "searchUrl":"/search?q={{key}}",
+              "ruleSearch":{
+                "bookList":"@css:.book",
+                "name":"@put:{\"url\":\"@css:a@href\",\"body\":\"@css:h2@text\"}@css:h2@text",
+                "bookUrl":"@get:{url}"
+              },
+              "ruleToc":{"chapterList":"@css:.chapter","chapterName":"@get:{body}","chapterUrl":"@css:a@href"},
+              "ruleContent":{"content":"@get:{body}"}
+            }
+        """.trimIndent()
+        val inspection = LegadoSourcePreflight.inspect(source).single()
+        assertTrue(inspection.issues.toString(), inspection.supportedSubset)
+        val reader = LegadoCssReader(inspection)
+        val books = reader.searchResults(
+            "<div class='book'><h2>甲</h2><a href='/a'>A</a></div>" +
+                "<div class='book'><h2>乙</h2><a href='/b'>B</a></div>",
+            "https://example.com/search"
+        )
+        assertEquals(listOf("甲", "乙"), books.map { it.title })
+        val chapters = books.map { book ->
+            reader.chapters("<div class='chapter'><a href='/chapter'>章</a></div>", book.url, book.variables).single()
+        }
+        assertEquals(listOf("甲", "乙"), chapters.map { it.title })
+        assertEquals(listOf("甲", "乙"), chapters.map {
+            org.jsoup.Jsoup.parseBodyFragment(reader.chapterHtml("<p>正文</p>", it.url, it.variables)).text()
+        })
+    }
 }
