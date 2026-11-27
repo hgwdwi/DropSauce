@@ -22,4 +22,6 @@
     <string name="tsubaki_legado_preview_limit">预览仅显示前 200 章</string>
     <string name="tsubaki_legado_save_chapter">将本章保存为离线书籍</string>
     <string name="tsubaki_legado_save_first">保存前 %1$d 章为离线书籍</string>
+    <string name="tsubaki_tts_engine">语音合成引擎</string>
+    <string name="tsubaki_tts_engine_error">所选语音引擎初始化失败。请检查安装与配置，或切换至系统默认。</string>
 </resources>
