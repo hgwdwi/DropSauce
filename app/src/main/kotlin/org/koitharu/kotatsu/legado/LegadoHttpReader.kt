@@ -27,8 +27,16 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
         return reader.searchResults(fetch(url), url)
     }
 
-    suspend fun chapters(book: LegadoCssReader.Book): List<LegadoCssReader.Chapter> =
-        reader.chapters(fetch(book.url), book.url)
+    data class BookDirectory(val book: LegadoCssReader.Book, val chapters: List<LegadoCssReader.Chapter>)
+
+    suspend fun directory(book: LegadoCssReader.Book): BookDirectory {
+        val detailHtml = fetch(book.url)
+        val details = reader.details(book, detailHtml, book.url)
+        val tocHtml = if (details.tocUrl == book.url) detailHtml else fetch(details.tocUrl)
+        return BookDirectory(details.book, reader.chapters(tocHtml, details.tocUrl))
+    }
+
+    suspend fun chapters(book: LegadoCssReader.Book): List<LegadoCssReader.Chapter> = directory(book).chapters
 
     suspend fun content(chapter: LegadoCssReader.Chapter): String =
         reader.chapterHtml(fetch(chapter.url), chapter.url)

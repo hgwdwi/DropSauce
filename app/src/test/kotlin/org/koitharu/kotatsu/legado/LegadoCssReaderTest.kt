@@ -19,6 +19,36 @@ class LegadoCssReaderTest {
         return LegadoCssReader(LegadoSourcePreflight.inspect(json).single())
     }
 
+    @Test fun resolvesSeparateDirectoryAndMetadata() {
+        val source = """
+            {
+              "bookSourceName":"Fixture",
+              "bookSourceUrl":"https://example.com",
+              "searchUrl":"/search?q={{key}}",
+              "ruleSearch":{"bookList":"@css:.book","name":"@css:h2@text","bookUrl":"@css:a@href","author":"@css:.author @text"},
+              "ruleBookInfo":{"tocUrl":"@css:.toc@href","intro":"@css:meta[name=description]@content"},
+              "ruleToc":{"chapterList":"@css:.chapter","chapterName":"@css:a@text","chapterUrl":"@css:a@href"},
+              "ruleContent":{"content":"@css:#content@html"}
+            }
+        """.trimIndent()
+        val inspected = LegadoSourcePreflight.inspect(source).single()
+        assertTrue(inspected.issues.toString(), inspected.supportedSubset)
+        val engine = LegadoCssReader(inspected)
+        val book = engine.searchResults(
+            "<div class='book'><h2>小说</h2><a href='/book/1'>阅读</a><span class='author'>作者甲</span></div>",
+            "https://example.com/search"
+        ).single()
+        assertEquals("作者甲", book.author)
+        val details = engine.details(book,
+            "<meta name='description' content='简介'><a class='toc' href='/toc/1'>目录</a>", book.url)
+        assertEquals("简介", details.book.intro)
+        assertEquals("https://example.com/toc/1", details.tocUrl)
+        try {
+            engine.details(book, "<a class='toc' href='https://other.example/toc'>目录</a>", book.url)
+            fail("Cross-origin directory accepted")
+        } catch (_: IllegalStateException) {}
+    }
+
     @Test fun encodesChineseSearchAndPagination() {
         assertEquals("https://example.com/search?q=%E4%B9%A6%20%E5%90%8D&page=2", reader().searchUrl("书 名", 2))
     }

@@ -13,8 +13,7 @@ import java.net.URLEncoder
 /**
  * Pure HTML parsing for the explicit, script-free Legado CSS subset.
  * The caller supplies fetched pages. This class does not perform networking.
- * Initially the book URL is also the TOC URL; separate detail-page TOC rules
- * are deliberately rejected by preflight.
+ * Supports a distinct same-origin TOC URL extracted from the book detail page.
  */
 internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspection) {
 
@@ -22,7 +21,8 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         require(source.supportedSubset && source.enabled) { "Source is disabled or unsupported" }
     }
 
-    data class Book(val title: String, val url: String)
+    data class Book(val title: String, val url: String, val author: String? = null, val intro: String? = null, val lastChapter: String? = null, val kind: String? = null, val wordCount: String? = null, val coverUrl: String? = null)
+    data class Details(val book: Book, val tocUrl: String)
     data class Chapter(val title: String, val url: String)
 
     fun searchUrl(query: String, page: Int = 1): String {
@@ -42,8 +42,45 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         return rows.asSequence().mapNotNull { row ->
             val name = first(names, row) ?: return@mapNotNull null
             val url = first(urls, row)?.let { resolve(pageUrl, it) } ?: return@mapNotNull null
-            Book(name, url)
+            Book(name, url,
+                metadata("ruleSearch", "author", row), metadata("ruleSearch", "intro", row),
+                metadata("ruleSearch", "lastChapter", row), metadata("ruleSearch", "kind", row),
+                metadata("ruleSearch", "wordCount", row),
+                optionalValue("ruleSearch", "coverUrl", row)?.let { resolve(pageUrl, it) },
+            )
         }.distinctBy { it.url }.take(MAX_ROWS).toList()
+    }
+
+    fun details(book: Book, html: String, pageUrl: String): Details {
+        val doc = document(html, pageUrl)
+        val tocRule = optionalRule("ruleBookInfo", "tocUrl")
+        val toc = if (tocRule == null) pageUrl else {
+            val link = first(tocRule, doc) ?: error("Directory link not found")
+            resolve(pageUrl, link) ?: error("Unsupported directory link")
+        }
+        return Details(book.copy(
+            title = metadata("ruleBookInfo", "name", doc) ?: book.title,
+            author = metadata("ruleBookInfo", "author", doc) ?: book.author,
+            intro = metadata("ruleBookInfo", "intro", doc) ?: book.intro,
+            lastChapter = metadata("ruleBookInfo", "lastChapter", doc) ?: book.lastChapter,
+            kind = metadata("ruleBookInfo", "kind", doc) ?: book.kind,
+            wordCount = metadata("ruleBookInfo", "wordCount", doc) ?: book.wordCount,
+            coverUrl = optionalValue("ruleBookInfo", "coverUrl", doc)?.let { resolve(pageUrl, it) } ?: book.coverUrl,
+        ), toc)
+    }
+
+    private fun optionalRule(group: String, field: String): LegadoSourcePreflight.CssRule? =
+        (source.original[group] as? JsonObject)?.string(field)?.takeIf { it.isNotBlank() }
+            ?.let { LegadoSourcePreflight.parseRule(it, false) }
+
+    private fun optionalValue(group: String, field: String, root: Element): String? =
+        optionalRule(group, field)?.let { first(it, root) }
+
+    private fun metadata(group: String, field: String, root: Element): String? {
+        val rule = optionalRule(group, field) ?: return null
+        val value = first(rule, root) ?: return null
+        return (if (rule.extraction == "html") Jsoup.parseBodyFragment(value).text() else value)
+            .take(2000).takeIf { it.isNotBlank() }
     }
 
     fun chapters(html: String, pageUrl: String): List<Chapter> {

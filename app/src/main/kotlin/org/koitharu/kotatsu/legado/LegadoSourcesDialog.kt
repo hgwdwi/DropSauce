@@ -142,6 +142,8 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                             Text(stringResource(R.string.tsubaki_legado_back))
                         }
                         Text(selectedBook.title, style = MaterialTheme.typography.titleMedium)
+                        selectedBook.author?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                        selectedBook.intro?.let { Text(it.take(500), style = MaterialTheme.typography.bodySmall) }
                         Text(stringResource(R.string.tsubaki_legado_chapter_count, chapters.size))
                         if (chapters.isNotEmpty()) {
                             val count = minOf(chapters.size, 10)
@@ -199,13 +201,18 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                         results.take(50).forEach { result ->
                             Surface(onClick = {
                                 task {
-                                    chapters = LegadoHttpReader(selected).chapters(result)
-                                    book = result
+                                    val directory = LegadoHttpReader(selected).directory(result)
+                                    chapters = directory.chapters
+                                    book = directory.book
                                 }
                             }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
                                 shape = MaterialTheme.shapes.medium,
                                 color = MaterialTheme.colorScheme.surface) {
-                                Text(result.title, Modifier.padding(12.dp))
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(result.title, style = MaterialTheme.typography.titleMedium)
+                                    result.author?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                                    result.lastChapter?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                                }
                             }
                         }
                     }

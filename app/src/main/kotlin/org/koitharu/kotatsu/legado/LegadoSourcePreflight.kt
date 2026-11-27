@@ -33,6 +33,10 @@ internal object LegadoSourcePreflight {
         "ruleToc" to listOf("chapterList", "chapterName", "chapterUrl"),
         "ruleContent" to listOf("content"),
     )
+    private val optional = mapOf(
+        "ruleSearch" to setOf("author", "intro", "lastChapter", "kind", "wordCount", "coverUrl"),
+        "ruleBookInfo" to setOf("name", "author", "intro", "lastChapter", "kind", "wordCount", "coverUrl", "tocUrl"),
+    )
     private val scriptFields = setOf(
         "jsLib", "loginUrl", "loginUi", "loginCheckJs", "coverDecodeJs",
         "header", "bookUrlPattern", "exploreUrl", "exploreScreen", "ruleReview",
@@ -89,7 +93,15 @@ internal object LegadoSourcePreflight {
                 for ((field, value) in rules) {
                     if (field in required[group].orEmpty()) continue
                     if (value.toString() in listOf("null", "\"\"")) continue
-                    issues += "Optional rule not implemented: $group.$field"
+                    if (field in optional[group].orEmpty()) {
+                        val parsed = runCatching { parseRule(rules.string(field), false) }.getOrNull()
+                        val allowed = when (field) {
+                            "tocUrl" -> setOf("href", "content")
+                            "coverUrl" -> setOf("src", "href", "content")
+                            else -> setOf("text", "html", "content")
+                        }
+                        if (parsed == null || parsed.extraction !in allowed) issues += "Unsupported $group.$field"
+                    } else issues += "Optional rule not implemented: $group.$field"
                 }
             }
             Inspection(name, url, item.string("enabled") != "false", issues, item)
@@ -126,9 +138,9 @@ internal object LegadoSourcePreflight {
         }) { "Composite or scripted rule unsupported" }
         val separator = raw.lastIndexOf('@')
         val selector = if (list) raw else raw.substring(0, separator.coerceAtLeast(0)).trim()
-        val extraction = if (list) null else raw.substring(separator + 1)
+        val extraction = if (list) null else raw.substring(separator + 1).trim()
         require(selector.isNotBlank())
-        if (!list) require(separator > 0 && extraction in setOf("text", "html", "href", "src"))
+        if (!list) require(separator > 0 && extraction in setOf("text", "html", "href", "src", "content"))
         // Validate selector syntax against an inert DOM.
         org.jsoup.Jsoup.parse("").select(selector)
         return CssRule(selector, extraction)
