@@ -18,8 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -56,12 +54,8 @@ fun showTtsVoicesDialog(context: Context, tts: ReaderTts, onClosed: () -> Unit) 
 		var slot by remember { mutableIntStateOf(tts.selectedVoiceIndex()) }
 		// Bumped after every link, and on coming back from the engine's download screen.
 		var revision by remember { mutableIntStateOf(0) }
-		val engineRevision by tts.engineRevision.collectAsState()
-		val engineFailed by tts.engineFailed.collectAsState()
-		val voices = remember(revision, engineRevision) { tts.availableVoices() }
-		val engines = remember(revision, engineRevision) { tts.installedEngines() }
-		val selectedEngine = remember(engineRevision) { tts.selectedEngine() }
-		val linked = remember(revision, engineRevision, slot) { tts.linkedVoiceName(slot) }
+		val voices = remember(revision) { tts.availableVoices() }
+		val linked = remember(revision, slot) { tts.linkedVoiceName(slot) }
 		val previewing by tts.previewingVoice.collectAsState()
 		DisposableEffect(Unit) {
 			val owner = context.findActivity() as? LifecycleOwner
@@ -110,22 +104,6 @@ fun showTtsVoicesDialog(context: Context, tts: ReaderTts, onClosed: () -> Unit) 
 				)
 			},
 		) {
-			Text(stringResource(R.string.tsubaki_tts_engine), style = MaterialTheme.typography.titleMedium)
-			if (selectedEngine == "io.github.hgwdwi.geniereader") Text(stringResource(R.string.tsubaki_tts_genie_limits), style = MaterialTheme.typography.bodySmall)
-			if (engineFailed) Text(stringResource(R.string.tsubaki_tts_engine_error), color = MaterialTheme.colorScheme.error)
-			Column {
-				TextButton(onClick = { tts.selectEngine("") }) {
-					RadioButton(selected = selectedEngine.isEmpty(), onClick = null)
-					Text(stringResource(R.string.system_default))
-				}
-				engines.forEach { engine ->
-					TextButton(onClick = { tts.selectEngine(engine.packageName) }) {
-						RadioButton(selected = selectedEngine == engine.packageName, onClick = null)
-						Text(engine.label)
-					}
-				}
-			}
-			Text(stringResource(R.string.tts_customize_voices), style = MaterialTheme.typography.titleMedium)
 			VoiceRow(
 				index = 0,
 				count = totalRows,

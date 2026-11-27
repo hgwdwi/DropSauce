@@ -37,7 +37,7 @@ import javax.inject.Singleton
 class ReaderTts @Inject constructor(
 	@ApplicationContext private val context: Context,
 	private val settings: AppSettings,
-) {
+) : TextToSpeech.OnInitListener {
 
 	/** A sentence of the current chapter: [start] until [end] are offsets into the chapter text. */
 	data class Position(val chapter: Int, val index: Int, val start: Int, val end: Int)
@@ -53,11 +53,6 @@ class ReaderTts @Inject constructor(
 
 	private var tts: TextToSpeech? = null
 	private var isInitialized = false
-	@Volatile private var engineGeneration = 0L
-	private val _engineRevision = MutableStateFlow(0)
-	val engineRevision: StateFlow<Int> = _engineRevision.asStateFlow()
-	private val _engineFailed = MutableStateFlow(false)
-	val engineFailed: StateFlow<Boolean> = _engineFailed.asStateFlow()
 	private var chunks: List<Sentence> = emptyList()
 	private var text: String = ""
 	private var chapter: Int = -1
@@ -131,7 +126,8 @@ class ReaderTts @Inject constructor(
 		if (_isPlaying.value) {
 			pause()
 		}
-		applyEngineTuning(engine)
+		engine.setSpeechRate(settings.epubTtsSpeed)
+		engine.setPitch(settings.epubTtsPitch)
 		engine.voice = voice
 		_previewingVoice.value = voice.name
 		engine.speak(sampleText(), TextToSpeech.QUEUE_FLUSH, null, PREVIEW_UTTERANCE_PREFIX + voice.name)
@@ -145,49 +141,9 @@ class ReaderTts @Inject constructor(
 		applySettings()
 	}
 
-	data class EngineChoice(val packageName: String, val label: String)
-
-	fun installedEngines(): List<EngineChoice> = context.packageManager
-		.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0)
-		.mapNotNull { info ->
-			val service = info.serviceInfo ?: return@mapNotNull null
-			EngineChoice(service.packageName, info.loadLabel(context.packageManager).toString())
-		}.distinctBy { it.packageName }.sortedBy { it.label }
-
-	fun selectedEngine(): String = settings.epubTtsEngine
-
-	fun usesGenieReader(): Boolean = selectedEngine() == GENIEREADER_PACKAGE
-
-	private fun applyEngineTuning(engine: TextToSpeech) {
-		engine.setSpeechRate(if (usesGenieReader()) 1f else settings.epubTtsSpeed)
-		engine.setPitch(if (usesGenieReader()) 1f else settings.epubTtsPitch)
-	}
-
-	/** Switching engines pauses playback but preserves the current chapter and reading position. */
-	fun selectEngine(packageName: String) {
-		if (packageName.isNotEmpty() && installedEngines().none { it.packageName == packageName }) return
-		if (packageName == settings.epubTtsEngine && isInitialized) return
-		resetEngine()
-		settings.epubTtsEngine = packageName
-		ensureEngine()
-	}
-
-	private fun resetEngine() {
-		engineGeneration++
-		pendingPlayFrom = null
-		isInitialized = false
-		_isPlaying.value = false
-		_previewingVoice.value = null
-		_engineFailed.value = false
-		tts?.stop()
-		tts?.shutdown()
-		tts = null
-		_engineRevision.value++
-	}
-
 	/** Opens the engine's own screen for downloading voices. */
 	fun installVoicesIntent(): Intent = Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)
-		.setPackage(selectedEngine().ifEmpty { tts?.defaultEngine })
+		.setPackage(tts?.defaultEngine)
 
 	/** Some engines throw or hand back null here instead of an empty set; either way there are no voices. */
 	private fun engineVoices(): Set<Voice>? = runCatching { tts?.takeIf { isInitialized }?.voices }.getOrNull()
@@ -247,7 +203,6 @@ class ReaderTts @Inject constructor(
 	}
 
 	fun pause() {
-		pendingPlayFrom = null
 		tts?.stop()
 		_isPlaying.value = false
 	}
@@ -271,7 +226,11 @@ class ReaderTts @Inject constructor(
 
 	fun stop() {
 		cancelSleepTimer()
-		resetEngine()
+		tts?.stop()
+		tts?.shutdown()
+		tts = null
+		isInitialized = false
+		pendingPlayFrom = null
 		chapter = -1
 		text = ""
 		chunks = emptyList()
@@ -328,7 +287,8 @@ class ReaderTts @Inject constructor(
 
 	fun applySettings() {
 		val engine = tts ?: return
-		applyEngineTuning(engine)
+		engine.setSpeechRate(settings.epubTtsSpeed)
+		engine.setPitch(settings.epubTtsPitch)
 		val voice = slotVoice(selectedVoiceIndex())
 		if (voice != null) {
 			engine.voice = voice
@@ -345,18 +305,13 @@ class ReaderTts @Inject constructor(
 		}
 	}
 
-	private fun onEngineInit(status: Int) {
+	override fun onInit(status: Int) {
 		if (status != TextToSpeech.SUCCESS) {
 			isInitialized = false
 			pendingPlayFrom = null
-			_engineFailed.value = true
-			tts?.shutdown()
-			tts = null
-			_engineRevision.value++
 			return
 		}
 		isInitialized = true
-		_engineFailed.value = false
 		// Speak on the media stream: on the default stream the engine is mixed at notification
 		// volume and ducked, which is most of why it sounds thin and quiet.
 		tts?.setAudioAttributes(
@@ -365,9 +320,8 @@ class ReaderTts @Inject constructor(
 				.setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
 				.build(),
 		)
-		tts?.setOnUtteranceProgressListener(ProgressListener(engineGeneration))
+		tts?.setOnUtteranceProgressListener(ProgressListener())
 		applySettings()
-		_engineRevision.value++
 		pendingPlayFrom?.let {
 			pendingPlayFrom = null
 			speakFrom(it)
@@ -376,22 +330,7 @@ class ReaderTts @Inject constructor(
 
 	private fun ensureEngine() {
 		if (tts == null) {
-			val requested = selectedEngine()
-			if (requested.isNotEmpty() && installedEngines().none { it.packageName == requested }) {
-				pendingPlayFrom = null
-				_engineFailed.value = true
-				_engineRevision.value++
-				return
-			}
-			val generation = ++engineGeneration
-			_engineFailed.value = false
-			val listener = TextToSpeech.OnInitListener { status ->
-				timerScope.launch(Dispatchers.Main) {
-					if (generation == engineGeneration) onEngineInit(status)
-				}
-			}
-			tts = if (requested.isEmpty()) TextToSpeech(context, listener)
-			else TextToSpeech(context, listener, requested)
+			tts = TextToSpeech(context, this)
 		}
 	}
 
@@ -406,25 +345,13 @@ class ReaderTts @Inject constructor(
 		}
 		applySettings()
 		engine.stop()
-		if (usesGenieReader() && (spokenLocale().language != "zh" ||
-				engine.isLanguageAvailable(Locale.CHINESE) < TextToSpeech.LANG_AVAILABLE)) {
-			_isPlaying.value = false
-			_engineFailed.value = true
-			return
-		}
-		_engineFailed.value = false
 		_isPlaying.value = true
 		spokenPrefix = skipChars
 		spokenOffset = skipChars
 		for (i in startIndex..chunks.lastIndex) {
 			val queueMode = if (i == startIndex) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
 			val sentence = spokenText(i).let { if (i == startIndex) it.drop(skipChars) else it }
-			if (engine.speak(sentence, queueMode, null, i.toString()) != TextToSpeech.SUCCESS) {
-				engine.stop()
-				_isPlaying.value = false
-				_engineFailed.value = true
-				break
-			}
+			engine.speak(sentence, queueMode, null, i.toString())
 		}
 	}
 
@@ -437,7 +364,7 @@ class ReaderTts @Inject constructor(
 		Position(chapter, index, it.start, it.end)
 	}
 
-	private inner class ProgressListener(private val generation: Long) : UtteranceProgressListener() {
+	private inner class ProgressListener : UtteranceProgressListener() {
 
 		/** A sample ending clears the picker's pause button, unless a newer sample already took over. */
 		private fun onPreviewEnded(utteranceId: String?): Boolean {
@@ -447,12 +374,10 @@ class ReaderTts @Inject constructor(
 		}
 
 		override fun onStop(utteranceId: String?, interrupted: Boolean) {
-			if (generation != engineGeneration) return
 			onPreviewEnded(utteranceId)
 		}
 
 		override fun onStart(utteranceId: String?) {
-			if (generation != engineGeneration) return
 			val index = utteranceId?.toIntOrNull() ?: return
 			// Only the utterance a re-queue started mid-sentence carries a prefix; every one after
 			// it is spoken whole.
@@ -464,12 +389,10 @@ class ReaderTts @Inject constructor(
 		}
 
 		override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
-			if (generation != engineGeneration) return
 			spokenOffset = spokenPrefix + start
 		}
 
 		override fun onDone(utteranceId: String?) {
-			if (generation != engineGeneration) return
 			if (onPreviewEnded(utteranceId)) return
 			val index = utteranceId?.toIntOrNull() ?: return
 			if (index >= chunks.lastIndex) {
@@ -486,14 +409,12 @@ class ReaderTts @Inject constructor(
 		override fun onError(utteranceId: String?) = Unit
 
 		override fun onError(utteranceId: String?, errorCode: Int) {
-			if (generation != engineGeneration) return
 			if (onPreviewEnded(utteranceId)) return
 			_isPlaying.value = false
 		}
 	}
 }
 
-private const val GENIEREADER_PACKAGE = "io.github.hgwdwi.geniereader"
 internal const val VOICE_SLOTS = 4
 private const val SAMPLE_LENGTH = 120
 private const val PREVIEW_UTTERANCE_PREFIX = "preview:"
@@ -593,12 +514,7 @@ private fun splitSentences(text: String): List<Sentence> {
 		while (from < to && text[from].isWhitespace()) from++
 		while (to > from && text[to - 1].isWhitespace()) to--
 		if (from < to) {
-			while (from < to) {
-				var next = minOf(from + 1000, to)
-				if (next < to && Character.isHighSurrogate(text[next - 1])) next--
-				result.add(Sentence(from, next))
-				from = next
-			}
+			result.add(Sentence(from, to))
 		}
 		start = end
 		end = iterator.next()

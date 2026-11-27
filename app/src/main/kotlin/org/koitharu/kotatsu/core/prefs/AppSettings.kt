@@ -379,10 +379,6 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() = prefs.getString(KEY_EPUB_READING_MODE, "scroll") ?: "scroll"
 
 	/** Speech rate for the novel text-to-speech, 0.25f..3f where 1f is the engine default. */
-	var epubTtsEngine: String
-		get() = prefs.getString(KEY_EPUB_TTS_ENGINE, "").orEmpty()
-		set(value) = prefs.edit { putString(KEY_EPUB_TTS_ENGINE, value) }
-
 	var epubTtsSpeed: Float
 		get() = prefs.getFloat(KEY_EPUB_TTS_SPEED, 1f).coerceIn(0.25f, 3f)
 		set(value) = prefs.edit { putFloat(KEY_EPUB_TTS_SPEED, value) }
@@ -1462,7 +1458,6 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_EPUB_READING_MODE = "epub_reading_mode"
 		const val KEY_EPUB_RTL = "epub_rtl"
 		const val KEY_EPUB_PAGED_TAP_GESTURES = "epub_paged_tap_gestures"
-		const val KEY_EPUB_TTS_ENGINE = "epub_tts_engine"
 		const val KEY_EPUB_TTS_SPEED = "epub_tts_speed"
 		const val KEY_EPUB_TTS_VOICE = "epub_tts_voice_index"
 		const val KEY_EPUB_TTS_SLOT_VOICES = "epub_tts_slot_voices_"
