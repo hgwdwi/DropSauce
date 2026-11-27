@@ -41,7 +41,7 @@ internal object LegadoSourcePreflight {
     )
     private val scriptFields = setOf(
         "jsLib", "loginUrl", "loginUi", "loginCheckJs", "coverDecodeJs",
-        "header", "bookUrlPattern", "exploreUrl", "exploreScreen", "ruleReview",
+        "bookUrlPattern", "exploreUrl", "exploreScreen", "ruleReview",
         "ruleExplore", "concurrentRate",
     )
 
@@ -65,14 +65,8 @@ internal object LegadoSourcePreflight {
             if (!httpUrl(url)) issues += "Invalid bookSourceUrl"
             if (!seen.add(url)) issues += "Duplicate bookSourceUrl"
             if (item.string("bookSourceType").ifBlank { "0" } != "0") issues += "Not a text novel source"
-            val search = item.string("searchUrl")
-            // Accept only simple HTTP GET URL templates. Advanced Legado URL
-            // syntax (POST options, JS, variables) needs a separate implementation.
-            val sample = search.replace("{{key}}", "test").replace("{{page}}", "1")
-            if (!search.contains("{{key}}") || sample.any { it in "{}<>\n\r" } ||
-                sample.contains("@js:", ignoreCase = true) || sample.contains(",") ||
-                !httpUrl(runCatching { URI(url).resolve(sample).toString() }.getOrDefault(""))) {
-                issues += "Unsupported searchUrl"
+            if (runCatching { LegadoRequestRule.search(item, "test", 1) }.isFailure) {
+                issues += "Unsupported searchUrl or request headers"
             }
             for (field in scriptFields) {
                 if (item[field]?.toString()?.let { it !in listOf("null", "\"\"", "{}", "[]") } == true) {

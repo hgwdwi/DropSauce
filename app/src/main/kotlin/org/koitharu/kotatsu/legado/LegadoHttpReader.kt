@@ -6,6 +6,8 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.jsoup.Jsoup
 import org.koitharu.kotatsu.parsers.util.await
 import java.io.ByteArrayInputStream
@@ -23,8 +25,8 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
     private val origin = source.url.toHttpUrl()
 
     suspend fun search(query: String, page: Int = 1): List<LegadoCssReader.Book> {
-        val url = reader.searchUrl(query, page)
-        return reader.searchResults(fetch(url), url)
+        val spec = reader.searchRequest(query, page)
+        return reader.searchResults(fetchSpec(spec), spec.url)
     }
 
     data class BookDirectory(val book: LegadoCssReader.Book, val chapters: List<LegadoCssReader.Chapter>)
@@ -50,17 +52,24 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
         return reader.cleanCombinedContent(html)
     }
 
-    private suspend fun fetch(url: String): String = withContext(Dispatchers.IO) {
-        val target = url.toHttpUrl()
+    private suspend fun fetch(url: String): String = fetchSpec(LegadoRequestRule.Spec(url, headers = LegadoRequestRule.sourceHeaders(source.original)))
+
+    private suspend fun fetchSpec(spec: LegadoRequestRule.Spec): String = withContext(Dispatchers.IO) {
+        val target = spec.url.toHttpUrl()
         require(target.scheme == origin.scheme && target.host == origin.host &&
             target.port == origin.port && target.username.isEmpty() && target.password.isEmpty()) {
             "Cross-origin book request is not supported"
         }
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url(target)
             .header("Accept", "text/html,application/xhtml+xml,application/json")
             .header("User-Agent", "TsubakiReader/0.4")
-            .get().build()
+        spec.headers.forEach { (key, value) -> builder.header(key, value) }
+        if (spec.method == "POST") {
+            val type = (spec.headers["content-type"] ?: "application/x-www-form-urlencoded").toMediaType()
+            builder.post(requireNotNull(spec.body).toRequestBody(type))
+        } else builder.get()
+        val request = builder.build()
         client.newCall(request).await().use { response ->
             if (!response.isSuccessful) throw IOException("HTTP " + response.code)
             val body = response.body ?: throw IOException("Empty response")
@@ -81,9 +90,9 @@ internal class LegadoHttpReader(private val source: LegadoSourcePreflight.Inspec
                 }
             }
             // Jsoup detects BOM and HTML meta charset when HTTP has no charset.
-            val charset = media?.charset()?.name()
+            val charset = spec.charset?.name() ?: media?.charset()?.name()
             val raw = bytes.toByteArray()
-            val decoded = raw.toString(media?.charset() ?: Charsets.UTF_8)
+            val decoded = raw.toString(spec.charset ?: media?.charset() ?: Charsets.UTF_8)
             val leading = decoded.trimStart().removePrefix("\uFEFF")
             if (leading.startsWith("{") || leading.startsWith("[")) decoded
             else Jsoup.parse(ByteArrayInputStream(raw), charset, target.toString()).outerHtml()

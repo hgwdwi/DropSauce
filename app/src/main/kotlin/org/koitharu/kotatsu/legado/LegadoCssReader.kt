@@ -9,7 +9,6 @@ import org.jsoup.nodes.Element
 import org.jsoup.nodes.Document
 import org.jsoup.safety.Safelist
 import java.net.URI
-import java.net.URLEncoder
 
 /**
  * Pure HTML parsing for the explicit, script-free Legado CSS subset.
@@ -26,14 +25,10 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
     data class Details(val book: Book, val tocUrl: String)
     data class Chapter(val title: String, val url: String)
 
-    fun searchUrl(query: String, page: Int = 1): String {
-        require(query.isNotBlank() && query.length <= 256)
-        require(page in 1..10000)
-        val encoded = URLEncoder.encode(query, "UTF-8").replace("+", "%20")
-        val template = source.original.string("searchUrl")
-        return resolve(source.url, template.replace("{{key}}", encoded).replace("{{page}}", page.toString()))
-            ?: error("Invalid search URL")
-    }
+    fun searchRequest(query: String, page: Int = 1): LegadoRequestRule.Spec =
+        LegadoRequestRule.search(source.original, query, page)
+
+    fun searchUrl(query: String, page: Int = 1): String = searchRequest(query, page).url
 
     fun searchResults(html: String, pageUrl: String): List<Book> {
         val doc = document(html, pageUrl)
