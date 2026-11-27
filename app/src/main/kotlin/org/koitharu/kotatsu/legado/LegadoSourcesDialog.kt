@@ -1,6 +1,5 @@
 package org.koitharu.kotatsu.legado
 
-import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,6 +23,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import org.koitharu.kotatsu.core.nav.AppRouter
+import org.koitharu.kotatsu.local.data.importer.SingleMangaImporter
+import org.koitharu.kotatsu.local.data.input.TxtNovelConverter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,7 +41,10 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 
+@AndroidEntryPoint
 class LegadoSourcesDialog : ComposeAlertDialogFragment() {
+
+    @Inject lateinit var importer: SingleMangaImporter
 
     private val store by lazy {
         LegadoSourceStore(File(requireContext().applicationContext.filesDir, "legado"))
@@ -48,7 +55,7 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
     private var results by mutableStateOf<List<LegadoCssReader.Book>>(emptyList())
     private var book by mutableStateOf<LegadoCssReader.Book?>(null)
     private var chapters by mutableStateOf<List<LegadoCssReader.Chapter>>(emptyList())
-    private var preview by mutableStateOf<String?>(null)
+    private var preview by mutableStateOf<TxtNovelConverter.Chapter?>(null)
     private var message by mutableStateOf<String?>(null)
     private var busy by mutableStateOf(false)
 
@@ -119,7 +126,16 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                             Text(stringResource(R.string.tsubaki_legado_back))
                         }
                         Text(stringResource(R.string.tsubaki_legado_preview))
-                        Text(chapterPreview)
+                        if (selectedBook != null) {
+                            Button(onClick = {
+                                task {
+                                    saveOffline(selectedBook.title + " · " + chapterPreview.title, listOf(chapterPreview))
+                                }
+                            }, enabled = !busy) {
+                                Text(stringResource(R.string.tsubaki_legado_save_chapter))
+                            }
+                        }
+                        Text(chapterPreview.body.take(16000))
                     }
                     selectedBook != null && selected != null -> {
                         TextButton(onClick = { book = null; chapters = emptyList() }, enabled = !busy) {
@@ -127,12 +143,33 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                         }
                         Text(selectedBook.title, style = MaterialTheme.typography.titleMedium)
                         Text(stringResource(R.string.tsubaki_legado_chapter_count, chapters.size))
+                        if (chapters.isNotEmpty()) {
+                            val count = minOf(chapters.size, 10)
+                            Button(onClick = {
+                                val requested = chapters.take(count)
+                                task {
+                                    val reader = LegadoHttpReader(selected)
+                                    val downloaded = ArrayList<TxtNovelConverter.Chapter>()
+                                    var chars = 0L
+                                    for (chapter in requested) {
+                                        val html = reader.content(chapter)
+                                        val text = withContext(Dispatchers.Default) { chapterText(html) }
+                                        chars += text.length
+                                        require(chars <= 2_000_000L) { "Offline text exceeds size limit" }
+                                        downloaded.add(TxtNovelConverter.Chapter(chapter.title, text))
+                                    }
+                                    saveOffline(selectedBook.title + " (1-$count)", downloaded)
+                                }
+                            }, enabled = !busy) {
+                                Text(stringResource(R.string.tsubaki_legado_save_first, count))
+                            }
+                        }
                         chapters.take(200).forEach { chapter ->
                             Surface(onClick = {
                                 task {
                                     val html = LegadoHttpReader(selected).content(chapter)
                                     preview = withContext(Dispatchers.Default) {
-                                        org.jsoup.Jsoup.parseBodyFragment(html).body().wholeText().take(16000)
+                                        TxtNovelConverter.Chapter(chapter.title, chapterText(html))
                                     }
                                 }
                             }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
@@ -239,6 +276,23 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                 }
             }
         }
+    }
+
+    private fun chapterText(html: String): String {
+        val body = org.jsoup.Jsoup.parseBodyFragment(html).body()
+        body.select("br").forEach { it.after(org.jsoup.nodes.TextNode("\n")) }
+        body.select("p,div,h1,h2,h3,h4,li,blockquote").forEach {
+            it.appendChild(org.jsoup.nodes.TextNode("\n"))
+        }
+        return body.wholeText().trim().also {
+            require(it.isNotBlank() && it.length <= 2_000_000) { "Empty or oversized chapter" }
+        }
+    }
+
+    private suspend fun saveOffline(title: String, chapters: List<TxtNovelConverter.Chapter>) {
+        val local = importer.importGeneratedNovel(title, chapters)
+        startActivity(AppRouter.detailsIntent(requireContext(), local.manga))
+        dismiss()
     }
 
     companion object {

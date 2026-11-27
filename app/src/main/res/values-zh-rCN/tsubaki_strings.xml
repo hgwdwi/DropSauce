@@ -20,4 +20,6 @@
     <string name="tsubaki_legado_chapter_count">章节数：%1$d</string>
     <string name="tsubaki_legado_preview">正文预览（非正式阅读器）</string>
     <string name="tsubaki_legado_preview_limit">预览仅显示前 200 章</string>
+    <string name="tsubaki_legado_save_chapter">将本章保存为离线书籍</string>
+    <string name="tsubaki_legado_save_first">保存前 %1$d 章为离线书籍</string>
 </resources>

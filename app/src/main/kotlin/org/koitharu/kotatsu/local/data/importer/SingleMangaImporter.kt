@@ -109,6 +109,36 @@ class SingleMangaImporter @Inject constructor(
 		LocalMangaParser(dest).getManga(withDetails = false)
 	}
 
+	/** Import a user-requested offline text snapshot into the existing local library. */
+	internal suspend fun importGeneratedNovel(
+		title: String,
+		chapters: List<TxtNovelConverter.Chapter>,
+	): LocalManga = withContext(Dispatchers.IO) {
+		require(chapters.isNotEmpty() && chapters.size <= 10)
+		require(chapters.sumOf { it.body.length.toLong() } <= 2_000_000L)
+		val directory = getOutputDir()
+		val safeName = title.replace(Regex("""[\\/:*?"<>|\p{Cntrl}]"""), "_")
+			.trim().trim('.').take(60).trimEnd().ifBlank { "Novel" }
+		val stage = File.createTempFile("online_novel_", ".tmp", directory)
+		var destination: File? = null
+		try {
+			runInterruptible {
+				stage.outputStream().use { TxtNovelConverter.writeEpub(title, chapters, it) }
+			}
+			val output = uniqueFile(directory, "$safeName.epub")
+			if (!stage.renameTo(output)) throw IOException("Cannot move novel into library")
+			destination = output
+			val manga = LocalMangaParser(output).getManga(withDetails = false)
+			localStorageChanges.emit(manga)
+			manga
+		} catch (e: Exception) {
+			destination?.delete()
+			throw e
+		} finally {
+			stage.delete()
+		}
+	}
+
 	private suspend fun importTextNovel(uri: Uri, name: String): LocalManga {
 		val directory = getOutputDir()
 		val title = name.substringAfterLast('/').substringAfterLast('\\')
