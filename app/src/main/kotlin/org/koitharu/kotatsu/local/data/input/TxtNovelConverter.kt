@@ -72,11 +72,15 @@ internal object TxtNovelConverter {
     fun chapters(text: String): List<Chapter> {
         val result = ArrayList<Chapter>()
         var title = "正文"
+        var hasHeading = false
         val body = StringBuilder()
 
         fun flush() {
             val value = body.toString()
-            if (value.isNotBlank()) {
+            if (value.isBlank() && hasHeading) {
+                if (result.size >= MAX_CHAPTERS) throw IOException("Too many TXT chapters")
+                result.add(Chapter(title, value))
+            } else if (value.isNotBlank()) {
                 var start = 0
                 var part = 1
                 while (start < value.length) {
@@ -101,6 +105,7 @@ internal object TxtNovelConverter {
             if (trimmed.length in 1..80 && heading.matches(trimmed)) {
                 flush()
                 title = trimmed
+                hasHeading = true
             } else {
                 if (body.isNotEmpty()) body.append('\n')
                 body.append(line)
