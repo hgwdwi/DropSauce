@@ -5,13 +5,15 @@ import org.mozilla.javascript.BaseFunction
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.ContextFactory
 import org.mozilla.javascript.Scriptable
+import org.mozilla.javascript.ScriptableObject
 import org.mozilla.javascript.Parser
 import org.mozilla.javascript.ast.*
 
 /**
  * Experimental pure-expression subset, NOT a general JavaScript runtime.
  * Validate the AST before execution; no loops, assignments, object/array construction,
- * arbitrary properties, native objects, network, eval, or user-defined functions.
+ * arbitrary properties, native objects, unrestricted network, eval, or user-defined functions.
+ * The only network entry point is an injected, origin-restricted java.ajax host function.
  */
 internal class LegadoPureExpression private constructor(private val expression: String) {
     fun evaluate(result: String, variables: LegadoVariables): String {
@@ -55,7 +57,7 @@ internal class LegadoPureExpression private constructor(private val expression: 
             require(value == null || value is CharSequence || value is Number || value is Boolean ||
                 org.mozilla.javascript.Undefined.isUndefined(value)) { "Expression must return a scalar" }
             val output = if (value == null || org.mozilla.javascript.Undefined.isUndefined(value)) "" else Context.toString(value)
-            require(output.length <= MAX_INPUT) { "Expression result exceeds limit" }
+            require(output.length <= MAX_OUTPUT) { "Expression result exceeds limit" }
             val updated = cx.evaluateString(scope, "JSON.stringify(__legadoVars)", "legado-state", 1, null)
             val json = kotlinx.serialization.json.Json.parseToJsonElement(Context.toString(updated)) as? kotlinx.serialization.json.JsonObject
                 ?: error("Invalid Java bridge state")
@@ -84,6 +86,7 @@ internal class LegadoPureExpression private constructor(private val expression: 
 
     companion object {
         private const val MAX_INPUT = 65536
+        private const val MAX_OUTPUT = 4 * 1024 * 1024
         private val stringMethods = setOf("trim", "toLowerCase", "toUpperCase", "substring", "slice", "charAt", "indexOf", "lastIndexOf", "replace")
         private val binaryOperators = setOf(
             org.mozilla.javascript.Token.ADD, org.mozilla.javascript.Token.SUB,
@@ -104,9 +107,10 @@ internal class LegadoPureExpression private constructor(private val expression: 
             is FunctionCall -> {
                 val target = node.target as? PropertyGet
                 val owner = target?.target as? Name
+                val property = target?.property?.identifier
                 when (owner?.identifier) {
-                    "result" -> target.property.identifier in stringMethods
-                    "java" -> target.property.identifier == "get"
+                    "result" -> property != null && property in stringMethods
+                    "java" -> property == "get"
                     else -> false
                 }
             }
