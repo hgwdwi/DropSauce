@@ -28,6 +28,7 @@ import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.local.data.isSupportedArchive
 import org.koitharu.kotatsu.local.data.input.LocalMangaParser
 import org.koitharu.kotatsu.local.data.input.TxtNovelConverter
+import java.nio.charset.Charset
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import java.io.File
@@ -43,11 +44,11 @@ class SingleMangaImporter @Inject constructor(
 
 	private val contentResolver = context.contentResolver
 
-	suspend fun import(uri: Uri): List<LocalManga> {
+	suspend fun import(uri: Uri, textCharset: Charset? = null): List<LocalManga> {
 		val result = if (isDirectory(uri)) {
 			importDirectory(uri)
 		} else {
-			listOf(importFile(uri))
+			listOf(importFile(uri, textCharset))
 		}
 		for (manga in result) {
 			localStorageChanges.emit(manga)
@@ -58,7 +59,7 @@ class SingleMangaImporter @Inject constructor(
 	data class TextFolderResult(val books: List<LocalManga>, val failedCount: Int)
 
 	/** Import only top-level TXT documents; each becomes an independent local book. */
-	suspend fun importTextFolder(uri: Uri): TextFolderResult = withContext(Dispatchers.IO) {
+	suspend fun importTextFolder(uri: Uri, textCharset: Charset? = null): TextFolderResult = withContext(Dispatchers.IO) {
 		val root = DocumentFile.fromTreeUri(context, uri)
 			?: throw IOException("Cannot open TXT folder")
 		val files = root.listFiles().filter {
@@ -69,7 +70,7 @@ class SingleMangaImporter @Inject constructor(
 		var failed = 0
 		var firstFailure: Throwable? = null
 		for (file in files) {
-			val result = runCatchingCancellable { importTextNovel(file.uri, file.requireName()) }
+			val result = runCatchingCancellable { importTextNovel(file.uri, file.requireName(), textCharset) }
 			val book = result.getOrNull()
 			if (book != null) {
 				books.add(book)
@@ -85,11 +86,11 @@ class SingleMangaImporter @Inject constructor(
 		TextFolderResult(books, failed)
 	}
 
-	private suspend fun importFile(uri: Uri): LocalManga = withContext(Dispatchers.IO) {
+	private suspend fun importFile(uri: Uri, textCharset: Charset? = null): LocalManga = withContext(Dispatchers.IO) {
 		val contentResolver = storageManager.contentResolver
 		val name = contentResolver.resolveName(uri) ?: throw IOException("Cannot fetch name from uri: $uri")
 		if (name.endsWith(".txt", ignoreCase = true)) {
-			return@withContext importTextNovel(uri, name)
+			return@withContext importTextNovel(uri, name, textCharset)
 		}
 		if (!isSupportedArchive(name)) {
 			throw UnsupportedFileException("Unsupported file $name on $uri")
@@ -139,7 +140,7 @@ class SingleMangaImporter @Inject constructor(
 		}
 	}
 
-	private suspend fun importTextNovel(uri: Uri, name: String): LocalManga {
+	private suspend fun importTextNovel(uri: Uri, name: String, textCharset: Charset? = null): LocalManga {
 		val directory = getOutputDir()
 		val title = name.substringAfterLast('/').substringAfterLast('\\')
 			.substringBeforeLast('.').trim().ifBlank { "未命名小说" }
@@ -149,7 +150,7 @@ class SingleMangaImporter @Inject constructor(
 			runInterruptible(Dispatchers.IO) {
 				val input = contentResolver.openInputStream(uri)
 					?: throw IOException("Cannot open TXT document")
-				val text = input.use { TxtNovelConverter.read(it) }
+				val text = input.use { TxtNovelConverter.read(it, textCharset) }
 				val chapters = TxtNovelConverter.chapters(text)
 				stage.outputStream().use { TxtNovelConverter.writeEpub(title, chapters, it) }
 			}
