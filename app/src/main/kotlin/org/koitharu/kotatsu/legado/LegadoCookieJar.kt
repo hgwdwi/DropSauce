@@ -21,14 +21,19 @@ internal class LegadoCookieJar(private val file: File? = null) : CookieJar {
         var changed = false
         val now = System.currentTimeMillis()
         for (cookie in cookies) {
+            require(cookie.name.length <= 256 && cookie.value.length <= MAX_COOKIE_CHARS) { "Cookie exceeds size limit" }
             val key = key(cookie)
-            if (cookie.expiresAt() <= now) changed = this.cookies.remove(key) != null || changed
+            if (cookie.expiresAt <= now) changed = this.cookies.remove(key) != null || changed
             else {
                 this.cookies[key] = cookie
                 changed = true
             }
         }
         if (pruneExpired(now)) changed = true
+        while (this.cookies.size > MAX_COOKIES) {
+            this.cookies.remove(this.cookies.keys.first())
+            changed = true
+        }
         if (changed) persist()
     }
 
@@ -68,8 +73,8 @@ internal class LegadoCookieJar(private val file: File? = null) : CookieJar {
                     expiresAt <= System.currentTimeMillis() || value.length > MAX_COOKIE_CHARS) continue
                 val builder = Cookie.Builder().name(name).value(value).path(path).expiresAt(expiresAt)
                 if (obj.boolean("hostOnly")) builder.hostOnlyDomain(domain) else builder.domain(domain)
-                if (obj.boolean("secure")) builder.secure()
-                if (obj.boolean("httpOnly")) builder.httpOnly()
+                if (obj.boolean("secure")) builder.secure
+                if (obj.boolean("httpOnly")) builder.httpOnly
                 runCatching { builder.build() }.getOrNull()?.let { cookies[key(it)] = it }
             }
             pruneExpired(System.currentTimeMillis())
@@ -80,28 +85,28 @@ internal class LegadoCookieJar(private val file: File? = null) : CookieJar {
     }
 
     private fun pruneExpired(now: Long): Boolean {
-        val expired = cookies.filterValues { it.expiresAt() <= now }.keys
+        val expired = cookies.filterValues { it.expiresAt <= now }.keys
         expired.forEach(cookies::remove)
         return expired.isNotEmpty()
     }
 
     private fun persist() {
         val target = file ?: return
-        val persistent = cookies.values.filter { it.persistent() }.take(MAX_COOKIES)
+        val persistent = cookies.values.filter { it.persistent }.take(MAX_COOKIES)
         if (persistent.isEmpty()) {
             if (target.exists() && !target.delete()) throw IOException("Cannot remove expired cookie store")
             return
         }
         val json = JsonArray(persistent.map { cookie ->
             buildJsonObject {
-                put("name", JsonPrimitive(cookie.name()))
-                put("value", JsonPrimitive(cookie.value()))
-                put("domain", JsonPrimitive(cookie.domain()))
-                put("path", JsonPrimitive(cookie.path()))
-                put("expiresAt", JsonPrimitive(cookie.expiresAt()))
-                put("hostOnly", JsonPrimitive(cookie.hostOnly()))
-                put("secure", JsonPrimitive(cookie.secure()))
-                put("httpOnly", JsonPrimitive(cookie.httpOnly()))
+                put("name", JsonPrimitive(cookie.name))
+                put("value", JsonPrimitive(cookie.value))
+                put("domain", JsonPrimitive(cookie.domain))
+                put("path", JsonPrimitive(cookie.path))
+                put("expiresAt", JsonPrimitive(cookie.expiresAt))
+                put("hostOnly", JsonPrimitive(cookie.hostOnly))
+                put("secure", JsonPrimitive(cookie.secure))
+                put("httpOnly", JsonPrimitive(cookie.httpOnly))
             }
         }).toString()
         val bytes = json.toByteArray(Charsets.UTF_8)
@@ -121,7 +126,7 @@ internal class LegadoCookieJar(private val file: File? = null) : CookieJar {
         }
     }
 
-    private fun key(cookie: Cookie): String = cookie.domain() + "\n" + cookie.path() + "\n" + cookie.name()
+    private fun key(cookie: Cookie): String = cookie.domain + "\n" + cookie.path + "\n" + cookie.name
     private fun JsonObject.string(name: String): String = (this[name] as? JsonPrimitive)?.contentOrNull.orEmpty()
     private fun JsonObject.long(name: String): Long = (this[name] as? JsonPrimitive)?.longOrNull ?: 0L
     private fun JsonObject.boolean(name: String): Boolean = (this[name] as? JsonPrimitive)?.booleanOrNull ?: false
