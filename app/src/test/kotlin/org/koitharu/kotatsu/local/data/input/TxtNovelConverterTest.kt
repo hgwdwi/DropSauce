@@ -32,7 +32,7 @@ class TxtNovelConverterTest {
 
     @Test
     fun decodesShiftJisWhenExplicitlySelected() {
-        val original = "プロローグ\\n第１話 夜\\n本文"
+        val original = "プロローグ\n第１話 夜\n本文"
         val shiftJis = Charset.forName("Shift_JIS")
         assertEquals(original, TxtNovelConverter.decode(original.toByteArray(shiftJis), shiftJis))
     }
@@ -44,7 +44,7 @@ class TxtNovelConverterTest {
 
     @Test
     fun unicodeBomTakesPrecedenceOverExplicitCharset() {
-        val original = "第一章\\n正文"
+        val original = "第一章\n正文"
         val bytes = byteArrayOf(0xef.toByte(), 0xbb.toByte(), 0xbf.toByte()) +
             original.toByteArray(Charsets.UTF_8)
         assertEquals(original, TxtNovelConverter.decode(bytes, Charset.forName("Shift_JIS")))
