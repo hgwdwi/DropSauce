@@ -29,7 +29,7 @@ internal object LocalShelfClassifier {
         return if (file.walkTopDown().any { child ->
                 child.isFile && (
                     classifyArchive(child.extension) == LocalShelf.COMICS ||
-                        child.extension.lowercase(Locale.ROOT) in IMAGE_EXTENSIONS
+                        hasImageExtension(child.name)
                     )
             }) {
             LocalShelf.COMICS
@@ -45,5 +45,4 @@ internal object LocalShelfClassifier {
     }
 
     private val COMIC_ARCHIVE_EXTENSIONS = setOf("cbz", "cbr", "zip", "pdf")
-    private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "avif", "jxl", "bmp")
 }
