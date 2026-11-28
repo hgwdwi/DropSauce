@@ -1,5 +1,6 @@
 package org.koitharu.kotatsu.legado
 
+import kotlinx.serialization.json.contentOrNull
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.ContextFactory
 import org.mozilla.javascript.Parser
