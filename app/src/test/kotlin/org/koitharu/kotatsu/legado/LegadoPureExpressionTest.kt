@@ -47,6 +47,9 @@ class LegadoPureExpressionTest {
         val rule = LegadoPureExpression.parse("java.ajax('https://example.com/' + result.trim(), 5000)")
         assertEquals("response:https://example.com/42", rule.evaluate(" 42 ", vars))
         assertEquals(listOf("https://example.com/42" to 5000), calls)
+        val noTimeout = LegadoPureExpression.parse("java.ajax('/title')")
+        assertEquals("response:/title", noTimeout.evaluate("", vars))
+        assertEquals(null, calls.last().second)
     }
 
     @Test

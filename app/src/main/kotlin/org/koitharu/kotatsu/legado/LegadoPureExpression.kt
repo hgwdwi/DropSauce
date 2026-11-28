@@ -50,7 +50,7 @@ internal class LegadoPureExpression private constructor(private val expression: 
                     "put:function(k,v){k=String(k);if(!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(k))throw new Error('Invalid variable key');" +
                     "if(!Object.prototype.hasOwnProperty.call(__legadoVars,k)&&Object.keys(__legadoVars).length>=64)throw new Error('Variable limit exceeded');" +
                     "__legadoVars[k]=String(v);return __legadoVars[k];}," +
-                    "ajax:function(url,timeout){return __legadoAjax(String(url),timeout);}" +
+                    "ajax:function(url,timeout){return arguments.length>1?__legadoAjax(String(url),timeout):__legadoAjax(String(url));}" +
                     "};",
                 "legado-bridge", 1, null)
             val value = cx.evaluateString(scope, "(" + expression + ")", "legado-expression", 1, null)

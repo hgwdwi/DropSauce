@@ -141,7 +141,7 @@ class LegadoHttpReaderIntegrationTest {
                 .body("Ajax Novel Title")
                 .build(),
         )
-        val reader = LegadoHttpReader(source(nameRule = "@js:java.ajax('${server.url("/title")}')"))
+        val reader = LegadoHttpReader(source(nameRule = "@js:java.ajax('/title')"))
 
         val books = reader.search("first")
 
