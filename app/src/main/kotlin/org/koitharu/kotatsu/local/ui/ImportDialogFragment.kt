@@ -27,6 +27,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.os.OpenDocumentTreeHelper
@@ -37,6 +38,7 @@ import org.koitharu.kotatsu.core.ui.dialog.expressiveGroupItemShape
 import org.koitharu.kotatsu.core.util.ext.resolveName
 import org.koitharu.kotatsu.core.util.ext.tryLaunch
 import org.koitharu.kotatsu.local.data.LocalStorageManager
+import org.koitharu.kotatsu.local.data.input.TxtNovelEncoding
 import org.koitharu.kotatsu.local.data.isSupportedArchive
 import javax.inject.Inject
 
@@ -172,8 +174,39 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 		uris.forEach {
 			storageManager.takePermissions(it)
 		}
+		if (textFolder || uris.any { it.isTxtFile() }) {
+			showTxtEncodingPicker(uris, textFolder)
+		} else {
+			enqueueImport(uris, textFolder, null)
+		}
+	}
+
+	private fun showTxtEncodingPicker(uris: Collection<Uri>, textFolder: Boolean) {
+		val encodings = TxtNovelEncoding.values()
+		val labels = arrayOf(
+			getString(R.string.tsubaki_txt_encoding_auto),
+			getString(R.string.tsubaki_txt_encoding_utf8),
+			getString(R.string.tsubaki_txt_encoding_utf16),
+			getString(R.string.tsubaki_txt_encoding_gb18030),
+			getString(R.string.tsubaki_txt_encoding_shift_jis),
+		)
+		var selectedIndex = 0
+		MaterialAlertDialogBuilder(requireContext())
+			.setTitle(R.string.tsubaki_txt_encoding_title)
+			.setMessage(R.string.tsubaki_txt_encoding_message)
+			.setSingleChoiceItems(labels, selectedIndex) { _, which ->
+				selectedIndex = which
+			}
+			.setNegativeButton(android.R.string.cancel, null)
+			.setPositiveButton(R.string.tsubaki_txt_encoding_import) { _, _ ->
+				 enqueueImport(uris, textFolder, encodings[selectedIndex].intentValue)
+			}
+			.show()
+	}
+
+	private fun enqueueImport(uris: Collection<Uri>, textFolder: Boolean, charsetName: String?) {
 		val ctx = requireContext()
-		val msg = if (ImportService.start(ctx, uris, textFolder)) {
+		val msg = if (ImportService.start(ctx, uris, textFolder, charsetName)) {
 			R.string.import_will_start_soon
 		} else {
 			R.string.error_occurred
@@ -181,6 +214,10 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 		Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
 		dismiss()
 	}
+
+	private fun Uri.isTxtFile(): Boolean = runCatching {
+		storageManager.contentResolver.resolveName(this)?.endsWith(".txt", ignoreCase = true) == true
+	}.getOrDefault(false)
 
 	private fun Uri.isDirectoryUri(): Boolean {
 		val ctx = context ?: return false
