@@ -7,13 +7,10 @@ import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.nav.router
-import org.koitharu.kotatsu.local.data.LocalShelf
 
 class LocalListMenuProvider(
 	private val fragment: Fragment,
 	private val onImportClick: Function0<Unit>,
-	private val onShelfSelected: (LocalShelf) -> Unit,
-	private val selectedShelf: () -> LocalShelf,
 ) : MenuProvider {
 
 	override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -23,28 +20,10 @@ class LocalListMenuProvider(
 	override fun onPrepareMenu(menu: Menu) {
 		super.onPrepareMenu(menu)
 		menu.findItem(R.id.action_filter)?.isVisible = fragment.router.isFilterSupported()
-		menu.findItem(R.id.action_shelf_all)?.isChecked = selectedShelf() == LocalShelf.ALL
-		menu.findItem(R.id.action_shelf_comics)?.isChecked = selectedShelf() == LocalShelf.COMICS
-		menu.findItem(R.id.action_shelf_novels)?.isChecked = selectedShelf() == LocalShelf.NOVELS
 	}
 
 	override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
 		return when (menuItem.itemId) {
-			R.id.action_shelf_all -> {
-				onShelfSelected(LocalShelf.ALL)
-				true
-			}
-
-			R.id.action_shelf_comics -> {
-				onShelfSelected(LocalShelf.COMICS)
-				true
-			}
-
-			R.id.action_shelf_novels -> {
-				onShelfSelected(LocalShelf.NOVELS)
-				true
-			}
-
 			R.id.action_import -> {
 				onImportClick()
 				true
