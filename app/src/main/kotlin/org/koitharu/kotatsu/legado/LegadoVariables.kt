@@ -1,7 +1,10 @@
 package org.koitharu.kotatsu.legado
 
 /** Per-book/per-chapter transient variables. Never stored globally or shared between sources. */
-internal class LegadoVariables(initial: Map<String, String> = emptyMap()) {
+internal class LegadoVariables(
+    initial: Map<String, String> = emptyMap(),
+    private val ajaxRequest: ((String, Int?) -> String)? = null,
+) {
     private val values = LinkedHashMap<String, String>()
 
     init {
@@ -16,6 +19,14 @@ internal class LegadoVariables(initial: Map<String, String> = emptyMap()) {
     }
 
     fun get(key: String): String? = values[key]
+
+    fun ajax(url: String, timeoutMs: Int? = null): String {
+        require(url.length in 1..4096) { "Invalid AJAX URL length" }
+        require(timeoutMs == null || timeoutMs in 250..30000) { "AJAX timeout must be between 250 and 30000 ms" }
+        val handler = ajaxRequest ?: error("Network access is unavailable in this rule context")
+        return handler(url, timeoutMs)
+    }
+
     fun snapshot(): Map<String, String> = values.toMap()
 
     companion object {

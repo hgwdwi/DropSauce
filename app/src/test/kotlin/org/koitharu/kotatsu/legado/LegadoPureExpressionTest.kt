@@ -38,9 +38,25 @@ class LegadoPureExpressionTest {
     }
 
     @Test
-    fun rejectsUnknownJavaBridgeMethods() {
-        assertTrue(runCatching { LegadoPureExpression.parse("java.ajax('https://example.com')") }.isFailure)
+    fun javaAjaxUsesInjectedHandlerAndAllowsBoundedUrlExpressions() {
+        val calls = ArrayList<Pair<String, Int?>>()
+        val vars = LegadoVariables(ajaxRequest = { url, timeout ->
+            calls += url to timeout
+            "response:$url"
+        })
+        val rule = LegadoPureExpression.parse("java.ajax('https://example.com/' + result.trim(), 5000)")
+        assertEquals("response:https://example.com/42", rule.evaluate(" 42 ", vars))
+        assertEquals(listOf("https://example.com/42" to 5000), calls)
+    }
+
+    @Test
+    fun javaAjaxRejectsUnsafeArgumentsAndMissingNetworkBridge() {
+        assertTrue(runCatching { LegadoPureExpression.parse("java.ajax(42)") }.isFailure)
+        assertTrue(runCatching { LegadoPureExpression.parse("java.ajax('/x', result)") }.isFailure)
         assertTrue(runCatching { LegadoPureExpression.parse("java.get(result)") }.isFailure)
+        assertTrue(runCatching {
+            LegadoPureExpression.parse("java.ajax('/x')").evaluate("", LegadoVariables())
+        }.isFailure)
     }
 
     @Test

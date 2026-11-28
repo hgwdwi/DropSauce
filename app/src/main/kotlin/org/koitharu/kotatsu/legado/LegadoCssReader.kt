@@ -15,7 +15,10 @@ import java.net.URI
  * The caller supplies fetched pages. This class does not perform networking.
  * Supports a distinct same-origin TOC URL extracted from the book detail page.
  */
-internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspection) {
+internal class LegadoCssReader(
+    private val source: LegadoSourcePreflight.Inspection,
+    private val ajax: ((String, Int?) -> String)? = null,
+) {
 
     init {
         require(source.supportedSubset && source.enabled) { "Source is disabled or unsupported" }
@@ -36,7 +39,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         val names = rule("ruleSearch", "name")
         val urls = rule("ruleSearch", "bookUrl")
         return rows.asSequence().mapNotNull { row ->
-            val vars = LegadoVariables()
+            val vars = newVariables()
             val name = first(names, row, vars) ?: return@mapNotNull null
             val url = first(urls, row, vars)?.let { resolve(pageUrl, it) } ?: return@mapNotNull null
             Book(name, url,
@@ -51,7 +54,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
 
     fun details(book: Book, html: String, pageUrl: String): Details {
         val doc = document(html, pageUrl)
-        val vars = LegadoVariables(book.variables)
+        val vars = newVariables(book.variables)
         val updated = book.copy(
             title = metadata("ruleBookInfo", "name", doc, vars) ?: book.title,
             author = metadata("ruleBookInfo", "author", doc, vars) ?: book.author,
@@ -68,6 +71,9 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         }
         return Details(updated.copy(variables = vars.snapshot()), toc)
     }
+
+    private fun newVariables(initial: Map<String, String> = emptyMap()): LegadoVariables =
+        LegadoVariables(initial, ajax)
 
     private fun optionalRule(group: String, field: String): LegadoStaticRule? =
         (source.original[group] as? JsonObject)?.string(field)?.takeIf { it.isNotBlank() }
@@ -89,7 +95,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
 
     private fun nextUrls(group: String, field: String, html: String, pageUrl: String): List<String> {
         val rule = optionalRule(group, field) ?: return emptyList()
-        return rule.values(document(html, pageUrl)).filter { it.isNotBlank() }.map { link ->
+        return rule.values(document(html, pageUrl), newVariables()).filter { it.isNotBlank() }.map { link ->
             resolve(pageUrl, link) ?: error("Unsupported pagination URL")
         }.distinct().take(100)
     }
@@ -111,7 +117,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         val names = rule("ruleToc", "chapterName")
         val urls = rule("ruleToc", "chapterUrl")
         return rows.asSequence().mapNotNull { row ->
-            val vars = LegadoVariables(bookVariables)
+            val vars = newVariables(bookVariables)
             val name = first(names, row, vars) ?: return@mapNotNull null
             val url = first(urls, row, vars)?.let { resolve(pageUrl, it) } ?: return@mapNotNull null
             Chapter(name, url, vars.snapshot())
@@ -122,7 +128,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         val doc = document(html, pageUrl)
         val extraction = rule("ruleContent", "content")
         if (doc is Element) doc.select("script,style,noscript,iframe,object,embed,form").remove()
-        val fragment = extraction.body(doc, LegadoVariables(variables))
+        val fragment = extraction.body(doc, newVariables(variables))
         require(fragment.isNotBlank()) { "Content selector found no matches" }
         val cleaned = Jsoup.clean(fragment, pageUrl, Safelist.none().addTags(
             "p", "br", "div", "span", "h1", "h2", "h3", "h4", "strong", "b",
@@ -145,7 +151,7 @@ internal class LegadoCssReader(private val source: LegadoSourcePreflight.Inspect
         return LegadoStaticRule.parse(if (field == "chapterList") json.string(field).removePrefix("-") else json.string(field), list)
     }
 
-    private fun first(rule: LegadoStaticRule, row: Any, vars: LegadoVariables = LegadoVariables()): String? =
+    private fun first(rule: LegadoStaticRule, row: Any, vars: LegadoVariables = newVariables()): String? =
         rule.values(row, vars).firstOrNull { it.isNotBlank() }?.trim()
 
     private fun JsonObject.string(key: String): String =

@@ -127,6 +127,43 @@ class LegadoHttpReaderIntegrationTest {
     }
 
     @Test
+    fun javaAjaxRuleFetchesRawTextAndSharesSourceCookies() = runBlocking {
+        server.enqueue(
+            MockResponse.Builder()
+                .addHeader("Content-Type", "text/html; charset=utf-8")
+                .addHeader("Set-Cookie", "sid=ajax-session; Path=/; HttpOnly")
+                .body(BOOK_HTML)
+                .build(),
+        )
+        server.enqueue(
+            MockResponse.Builder()
+                .addHeader("Content-Type", "text/plain; charset=utf-8")
+                .body("Ajax Novel Title")
+                .build(),
+        )
+        val reader = LegadoHttpReader(source(nameRule = "@js:java.ajax('${server.url("/title")}')"))
+
+        val books = reader.search("first")
+
+        assertEquals("Ajax Novel Title", books.single().title)
+        assertNull(server.takeRequest().headers["Cookie"])
+        val ajax = server.takeRequest()
+        assertEquals("/title", ajax.target)
+        assertEquals("sid=ajax-session", ajax.headers["Cookie"])
+    }
+
+    @Test
+    fun javaAjaxRejectsCrossOriginBeforeSecondRequest() = runBlocking {
+        server.enqueue(htmlResponse())
+        val reader = LegadoHttpReader(source(nameRule = "@js:java.ajax('https://other.example/title')"))
+
+        val failure = runCatching { reader.search("blocked") }.exceptionOrNull()
+
+        assertTrue("Expected cross-origin AJAX rejection, got $failure", failure is IllegalArgumentException)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
     fun crossOriginRedirectIsRejectedBeforeSecondRequest() = runBlocking {
         server.enqueue(
             MockResponse.Builder()
@@ -142,7 +179,10 @@ class LegadoHttpReaderIntegrationTest {
         assertEquals(1, server.requestCount)
     }
 
-    private fun source(searchUrl: String = "/search?q={{key}}"): LegadoSourcePreflight.Inspection {
+    private fun source(
+        searchUrl: String = "/search?q={{key}}",
+        nameRule: String = "@css:h2@text",
+    ): LegadoSourcePreflight.Inspection {
         val json = buildJsonObject {
             put("bookSourceName", "Local Mock Source")
             put("bookSourceUrl", server.url("/").toString())
@@ -151,7 +191,7 @@ class LegadoHttpReaderIntegrationTest {
                 "ruleSearch",
                 buildJsonObject {
                     put("bookList", "@css:.book")
-                    put("name", "@css:h2@text")
+                    put("name", nameRule)
                     put("bookUrl", "@css:a@href")
                 },
             )

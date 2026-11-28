@@ -22,10 +22,10 @@ class LegadoDynamicRuleTest {
     }
 
     @Test
-    fun dynamicExpressionDoesNotExposeNetworkBridge() {
+    fun dynamicExpressionCannotUseNetworkWithoutAnInjectedReader() {
         val vars = LegadoVariables()
-        val rule = runCatching { LegadoDynamicRule.parse("@js:java.ajax('https://example.com')") }
-        org.junit.Assert.assertTrue(rule.isFailure)
+        val rule = LegadoDynamicRule.parse("@js:java.ajax('https://example.com')")
+        org.junit.Assert.assertTrue(runCatching { rule.evaluate("unused", vars) }.isFailure)
         assertEquals(emptyMap<String, String>(), vars.snapshot())
     }
 }
