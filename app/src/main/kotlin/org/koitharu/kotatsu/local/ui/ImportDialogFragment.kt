@@ -171,9 +171,6 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 			Toast.makeText(requireContext(), R.string.text_file_not_supported, Toast.LENGTH_LONG).show()
 			return
 		}
-		uris.forEach {
-			storageManager.takePermissions(it)
-		}
 		if (textFolder || uris.any { it.isTxtFile() }) {
 			showTxtEncodingPicker(uris, textFolder)
 		} else {
@@ -205,6 +202,9 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 	}
 
 	private fun enqueueImport(uris: Collection<Uri>, textFolder: Boolean, charsetName: String?) {
+		uris.forEach {
+			storageManager.takePermissions(it)
+		}
 		val ctx = requireContext()
 		val msg = if (ImportService.start(ctx, uris, textFolder, charsetName)) {
 			R.string.import_will_start_soon
