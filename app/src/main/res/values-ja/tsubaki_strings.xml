@@ -8,4 +8,5 @@
     <string name="tsubaki_txt_encoding_gb18030">GB18030</string>
     <string name="tsubaki_txt_encoding_shift_jis">Shift_JIS（日本語）</string>
     <string name="tsubaki_txt_encoding_import">インポート</string>
+    <string name="tsubaki_txt_encoding_windows31j">Windows-31J（CP932）</string>
 </resources>
