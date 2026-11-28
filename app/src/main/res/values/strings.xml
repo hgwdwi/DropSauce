@@ -1393,4 +1393,8 @@
     <string name="local_shelf_all">All</string>
     <string name="local_shelf_comics">Comics</string>
     <string name="local_shelf_novels">Novels</string>
+    <string name="text_local_comics_empty">No comics yet</string>
+    <string name="text_local_comics_empty_hint">Import a CBZ, CBR, ZIP, PDF, or an image folder to start reading.</string>
+    <string name="text_local_novels_empty">No novels yet</string>
+    <string name="text_local_novels_empty_hint">Import an EPUB or a TXT novel to add it to your shelf.</string>
 </resources>
