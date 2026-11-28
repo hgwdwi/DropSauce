@@ -28,11 +28,15 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.list.ui.model.MangaListModel
 import org.koitharu.kotatsu.list.ui.model.QuickFilter
 import org.koitharu.kotatsu.list.ui.model.TipModel
+import org.koitharu.kotatsu.local.data.LocalShelf
+import org.koitharu.kotatsu.local.data.LocalShelfClassifier
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.local.domain.DeleteLocalMangaUseCase
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.model.Manga
+import java.io.File
+import androidx.core.net.toUri
 import org.koitharu.kotatsu.remotelist.ui.RemoteListViewModel
 import org.koitharu.kotatsu.settings.sources.catalog.ExtensionStoreManager
 import javax.inject.Inject
@@ -67,7 +71,17 @@ class LocalListViewModel @Inject constructor(
 	val onMangaRemoved = MutableEventFlow<Unit>()
 	private val showInlineFilter: Boolean = savedStateHandle[AppRouter.KEY_IS_BOTTOMTAB] ?: false
 
+	var selectedShelf: LocalShelf
+		private set(value) {
+			field = value
+			savedStateHandle[KEY_LOCAL_SHELF] = value.name
+		}
+		get() = field
+
 	init {
+		selectedShelf = savedStateHandle.get<String>(KEY_LOCAL_SHELF)
+			?.let { runCatching { LocalShelf.valueOf(it) }.getOrNull() }
+			?: LocalShelf.ALL
 		launchJob(Dispatchers.Default) {
 			localStorageChanges
 				.collect {
@@ -79,6 +93,13 @@ class LocalListViewModel @Inject constructor(
 
 	override suspend fun onBuildList(list: MutableList<ListModel>) {
 		super.onBuildList(list)
+		if (selectedShelf != LocalShelf.ALL) {
+			list.removeAll { item ->
+				if (item !is MangaListModel) return@removeAll false
+				val file = File(item.manga.url.toUri().schemeSpecificPart)
+				LocalShelfClassifier.classify(file) != selectedShelf
+			}
+		}
 		if (showInlineFilter) {
 			createFilterHeader(maxCount = 16)?.let {
 				list.add(0, it)
@@ -133,6 +154,12 @@ class LocalListViewModel @Inject constructor(
 		}
 	}
 
+	fun selectShelf(shelf: LocalShelf) {
+		if (selectedShelf == shelf) return
+		selectedShelf = shelf
+		loadList(filterCoordinator.snapshot(), append = false)
+	}
+
 	fun delete(ids: Set<Long>) {
 		launchLoadingJob(Dispatchers.Default) {
 			deleteLocalMangaUseCase(ids)
@@ -157,7 +184,7 @@ class LocalListViewModel @Inject constructor(
 		)
 	}
 
-	private suspend fun createFilterHeader(maxCount: Int): QuickFilter? {
+	private suspend fun createFilterHeader(maxCount: Int): QuickFilter?
 		val appliedTags = filterCoordinator.snapshot().listFilter.tags
 		val availableTags = repository.getFilterOptions().availableTags
 		if (appliedTags.isEmpty() && availableTags.size < 3) {
@@ -179,3 +206,5 @@ class LocalListViewModel @Inject constructor(
 		return QuickFilter(result)
 	}
 }
+
+private const val KEY_LOCAL_SHELF = "local_library_shelf"
