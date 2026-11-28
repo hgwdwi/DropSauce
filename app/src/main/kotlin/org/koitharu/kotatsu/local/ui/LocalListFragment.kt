@@ -58,7 +58,25 @@ class LocalListFragment : MangaListFragment(), FilterCoordinator.Owner {
 
 	override fun onViewBindingCreated(binding: FragmentListBinding, savedInstanceState: Bundle?) {
 		super.onViewBindingCreated(binding, savedInstanceState)
-		addMenuProvider(LocalListMenuProvider(this, this::onEmptyActionClick, viewModel::selectShelf) { viewModel.selectedShelf })
+		addMenuProvider(LocalListMenuProvider(this, this::onEmptyActionClick))
+		binding.shelfToggleGroup.check(
+			when (viewModel.selectedShelf) {
+				LocalShelf.ALL -> R.id.shelfAll
+				LocalShelf.COMICS -> R.id.shelfComics
+				LocalShelf.NOVELS -> R.id.shelfNovels
+			},
+		)
+		binding.shelfToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+			if (isChecked) {
+				viewModel.selectShelf(
+					when (checkedId) {
+						R.id.shelfComics -> LocalShelf.COMICS
+						R.id.shelfNovels -> LocalShelf.NOVELS
+						else -> LocalShelf.ALL
+					},
+				)
+			}
+		}
 		addMenuProvider(MangaSearchMenuProvider(filterCoordinator, viewModel, activity))
 		viewModel.onMangaRemoved.observeEvent(viewLifecycleOwner) { onItemRemoved() }
 	}
