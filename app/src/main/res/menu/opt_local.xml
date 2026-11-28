@@ -11,6 +11,25 @@
 		app:showAsAction="ifRoom" />
 
 	<item
+		android:id="@+id/action_shelf"
+		android:orderInCategory="10"
+		android:title="@string/local_shelf">
+		<menu
+			android:checkableBehavior="single">
+			<item
+				android:id="@+id/action_shelf_all"
+				android:checked="true"
+				android:title="@string/local_shelf_all" />
+			<item
+				android:id="@+id/action_shelf_comics"
+				android:title="@string/local_shelf_comics" />
+			<item
+				android:id="@+id/action_shelf_novels"
+				android:title="@string/local_shelf_novels" />
+		</menu>
+	</item>
+
+	<item
 		android:id="@+id/action_filter"
 		android:icon="@drawable/ic_filter_menu"
 		android:orderInCategory="30"
