@@ -26,20 +26,20 @@ internal object TxtNovelConverter {
     data class Chapter(val title: String, val body: String)
 
     private val heading = Regex(
-        """^(?:第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集](?:[\s　：:、.．\-].*)?|(?:序章|序言|楔子|前言|尾声|尾聲|后记|後記|番外)(?:[\s　：:、.．\-].*)?|Chapter\s+\d+(?:\s+.*)?)$""",
+        """^(?:第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集](?:[\s　：:、.．\-].*)?|(?:序章|序言|楔子|前言|尾声|尾聲|后记|後記|番外)(?:[\s　：:、.．\-].*)?|Chapter\s+\d+(?:\s+.*)?|(?:プロローグ|エピローグ|第[零〇一二三四五六七八九十百千万0-9０-９]+話(?:[\s　：:、.．\-].*)?))$""",
         RegexOption.IGNORE_CASE,
     )
 
     // Many Chinese web novels omit a separator: 第一章初见. Limit this
     // fallback to short lines without sentence-ending punctuation.
     private val compactHeading = Regex(
-        """^第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集][^\s　：:、.．\-，。！？；!?;]{1,32}$""",
+        """^第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集](?!的)[^\s　：:、.．\-，。！？；!?;]{1,32}$""",
     )
 
     private fun isHeading(line: String): Boolean =
         line.length in 1..80 && (heading.matches(line) || compactHeading.matches(line))
 
-    fun read(input: InputStream): String {
+    fun read(input: InputStream, charsetOverride: Charset? = null): String {
         val bytes = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(8192)
         while (true) {
@@ -49,20 +49,24 @@ internal object TxtNovelConverter {
             if (bytes.size() > MAX_INPUT_BYTES - count) throw IOException("TXT exceeds 32 MiB")
             bytes.write(buffer, 0, count)
         }
-        return decode(bytes.toByteArray())
+        return decode(bytes.toByteArray(), charsetOverride)
     }
 
-    fun decode(bytes: ByteArray): String {
+    fun decode(bytes: ByteArray, charsetOverride: Charset? = null): String {
         fun starts(vararg prefix: Int): Boolean =
             bytes.size >= prefix.size && prefix.indices.all { (bytes[it].toInt() and 255) == prefix[it] }
         val decoded = when {
             starts(0xef, 0xbb, 0xbf) -> strictDecode(bytes, Charsets.UTF_8, 3)
             starts(0xff, 0xfe) -> strictDecode(bytes, Charsets.UTF_16LE, 2)
             starts(0xfe, 0xff) -> strictDecode(bytes, Charsets.UTF_16BE, 2)
-            else -> try {
-                strictDecode(bytes, Charsets.UTF_8)
-            } catch (_: CharacterCodingException) {
-                strictDecode(bytes, Charset.forName("GB18030"))
+            else -> if (charsetOverride != null) {
+                strictDecode(bytes, charsetOverride)
+            } else {
+                try {
+                    strictDecode(bytes, Charsets.UTF_8)
+                } catch (_: CharacterCodingException) {
+                    strictDecode(bytes, Charset.forName("GB18030"))
+                }
             }
         }
         if (decoded.indexOf('\u0000') >= 0 || decoded.isBlank()) {
