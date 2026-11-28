@@ -23,4 +23,12 @@
     <string name="tsubaki_legado_save_chapter">将本章保存为离线书籍</string>
     <string name="tsubaki_legado_save_first">保存前 %1$d 章为离线书籍</string>
     <string name="tsubaki_legado_cookies_clear">清除 Cookie</string>
+    <string name="tsubaki_txt_encoding_title">TXT 文本编码</string>
+    <string name="tsubaki_txt_encoding_message">选择 TXT 文件的解码方式。若文件包含 Unicode BOM，将优先使用 BOM 指定的编码。</string>
+    <string name="tsubaki_txt_encoding_auto">自动检测（优先 UTF-8，失败后尝试 GB18030）</string>
+    <string name="tsubaki_txt_encoding_utf8">UTF-8</string>
+    <string name="tsubaki_txt_encoding_utf16">UTF-16（建议文件带 BOM）</string>
+    <string name="tsubaki_txt_encoding_gb18030">GB18030</string>
+    <string name="tsubaki_txt_encoding_shift_jis">Shift_JIS（日文）</string>
+    <string name="tsubaki_txt_encoding_import">导入</string>
 </resources>
