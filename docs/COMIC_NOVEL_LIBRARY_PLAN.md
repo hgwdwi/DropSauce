@@ -48,19 +48,20 @@ The first implementation should expose **All / Comics / Novels** as a view filte
 
 ## Implementation sequence
 
-### Phase 1 — Classification and filtering
+### Phase 1 — Classification and filtering (implemented; CI pending)
 
-- Add a pure local-content classifier based on the backing file type.
-- Add unit tests for EPUB, CBZ/ZIP/CBR, PDF, image directories, extension case handling, and unknown files.
-- Filter the already indexed local results at the repository boundary; do not scan storage a second time.
-- Keep All as the default and preserve existing behavior.
+- Added a pure local-content classifier based on the backing file type.
+- Added unit coverage for EPUB, CBZ/ZIP/CBR, PDF, image directories, nested chapter folders, extension case handling, and unknown files.
+- Filter the already indexed local results after list mapping; no second storage scan is introduced.
+- All remains the default and unknown formats remain visible in All.
 
-### Phase 2 — Shelf selector
+### Phase 2 — Shelf selector (implemented; UI acceptance pending)
 
-- Add All / Comics / Novels selector to the local library screen.
-- Store the selection in saved UI state; do not change global library data.
+- Added an All / Comics / Novels Material 3 segmented selector only to the local library layout; shared remote-list screens are unchanged.
+- Store the selection in SavedStateHandle; no global library data is changed.
 - Refresh the existing list when the selection changes.
-- Ensure search, sort and current list mode remain intact.
+- Search, sort and current list mode continue to use the existing list pipeline.
+- Added shelf-specific empty states with import guidance.
 
 ### Phase 3 — Comic import and reading acceptance
 
