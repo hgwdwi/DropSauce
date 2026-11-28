@@ -35,7 +35,7 @@ class LegadoCookieJarTest {
 
     @Test fun cookiesRespectDomainPathAndSecureScope() {
         val jar = LegadoCookieJar()
-        val hostOnly = Cookie.Builder().name("host").value("1").hostOnlyDomain("example.com").path("/reader").build()
+        val hostOnly = Cookie.Builder().name("host").value("1").hostOnlyDomain("example.com").path("/reader").secure().build()
         val domain = Cookie.Builder().name("domain").value("2").domain("example.com").path("/").build()
         jar.saveFromResponse(url, listOf(hostOnly, domain))
         assertEquals(setOf("host", "domain"), jar.loadForRequest(url).map { it.name }.toSet())
