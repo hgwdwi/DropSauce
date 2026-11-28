@@ -172,13 +172,17 @@ class LocalListViewModel @Inject constructor(
 		mode: ListMode
 	) = mangaListMapper.toListModelList(destination, manga, mode, MangaListMapper.NO_SAVED)
 
-	override fun createEmptyState(canResetFilter: Boolean): EmptyState = if (canResetFilter) {
-		super.createEmptyState(true)
-	} else {
-		EmptyState(
+	override fun createEmptyState(canResetFilter: Boolean): EmptyState {
+		if (canResetFilter) return super.createEmptyState(true)
+		val (title, description) = when (selectedShelf) {
+			LocalShelf.ALL -> R.string.text_local_holder_primary to R.string.text_local_holder_secondary
+			LocalShelf.COMICS -> R.string.text_local_comics_empty to R.string.text_local_comics_empty_hint
+			LocalShelf.NOVELS -> R.string.text_local_novels_empty to R.string.text_local_novels_empty_hint
+		}
+		return EmptyState(
 			icon = R.drawable.ic_empty_local,
-			textPrimary = R.string.text_local_holder_primary,
-			textSecondary = R.string.text_local_holder_secondary,
+			textPrimary = title,
+			textSecondary = description,
 			actionStringRes = R.string._import,
 		)
 	}
