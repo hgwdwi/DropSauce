@@ -72,7 +72,7 @@ internal class LegadoHttpReader(
 
     private suspend fun fetchSpec(spec: LegadoRequestRule.Spec): String = withContext(Dispatchers.IO) {
         var current = spec.url.toHttpUrl()
-        require(sameOrigin(current)) { "Cross-origin book request is not supported" }
+        require(LegadoRedirectPolicy.isSameOrigin(origin, current)) { "Cross-origin book request is not supported" }
         var method = spec.method
         var requestBody = spec.body
         var redirects = 0
