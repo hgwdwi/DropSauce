@@ -3,6 +3,7 @@ package org.koitharu.kotatsu.local.data
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocalShelfClassifierTest {
@@ -52,7 +53,7 @@ class LocalShelfClassifierTest {
         val directory = Files.createTempDirectory("nested-comic-shelf-test").toFile()
         try {
             val chapter = File(directory, "Chapter 1")
-            assertEquals(true, chapter.mkdir())
+            assertTrue(chapter.mkdir())
             File(chapter, "001.webp").createNewFile()
             assertEquals(LocalShelf.COMICS, LocalShelfClassifier.classify(directory))
         } finally {
