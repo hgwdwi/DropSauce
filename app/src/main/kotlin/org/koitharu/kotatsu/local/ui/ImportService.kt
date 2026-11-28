@@ -29,6 +29,7 @@ import org.koitharu.kotatsu.core.util.ext.toBitmapOrNull
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.core.util.ext.withPartialWakeLock
 import org.koitharu.kotatsu.local.data.importer.SingleMangaImporter
+import org.koitharu.kotatsu.local.data.input.TxtNovelEncoding
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import javax.inject.Inject
@@ -51,16 +52,17 @@ class ImportService : CoroutineIntentService() {
 
 	override suspend fun IntentJobContext.processIntent(intent: Intent) {
 		val uri = requireNotNull(intent.getStringExtra(DATA_URI)?.toUriOrNull()) { "No input uri" }
+		val textCharset = TxtNovelEncoding.fromIntentValue(intent.getStringExtra(TEXT_CHARSET)).charsetOrNull()
 		startForeground(this)
 		powerManager.withPartialWakeLock(TAG) {
 			var failedCount = 0
 			val result = runCatchingCancellable {
 				if (intent.getBooleanExtra(TEXT_FOLDER, false)) {
-					val batch = importer.importTextFolder(uri)
+					val batch = importer.importTextFolder(uri, textCharset)
 					failedCount = batch.failedCount
 					batch.books.map { it.manga }
 				} else {
-					importer.import(uri).map { it.manga }
+					importer.import(uri, textCharset).map { it.manga }
 				}
 			}
 			result.exceptionOrNull()?.printStackTraceDebug()
@@ -175,16 +177,23 @@ class ImportService : CoroutineIntentService() {
 
 		private const val DATA_URI = "uri"
 		private const val TEXT_FOLDER = "text_folder"
+		private const val TEXT_CHARSET = "text_charset"
 		private const val TAG = "import"
 		private const val CHANNEL_ID = "importing"
 		private const val FOREGROUND_NOTIFICATION_ID = 37
 
-		fun start(context: Context, uris: Collection<Uri>, textFolder: Boolean = false): Boolean = try {
+		fun start(
+			context: Context,
+			uris: Collection<Uri>,
+			textFolder: Boolean = false,
+			textCharsetName: String? = null,
+		): Boolean = try {
 			require(uris.isNotEmpty())
 			for (uri in uris) {
 				val intent = Intent(context, ImportService::class.java)
 				intent.putExtra(DATA_URI, uri.toString())
 				intent.putExtra(TEXT_FOLDER, textFolder)
+				intent.putExtra(TEXT_CHARSET, textCharsetName)
 				ContextCompat.startForegroundService(context, intent)
 			}
 			true
