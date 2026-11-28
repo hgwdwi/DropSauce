@@ -63,11 +63,12 @@ The first implementation should expose **All / Comics / Novels** as a view filte
 - Search, sort and current list mode continue to use the existing list pipeline.
 - Added shelf-specific empty states with import guidance.
 
-### Phase 3 — Comic import and reading acceptance
+### Phase 3 — Comic import and reading acceptance (source audit + ordering regression added)
 
-- Validate CBZ/ZIP, image-folder and PDF imports.
-- Verify natural filename ordering (for example, 1, 2, 10), nested chapter folders, cover selection and corrupt archive handling.
-- Verify page/scroll modes, RTL, Webtoon and double-page settings remain unchanged.
+- Existing parser supports CBZ/ZIP image archives, image folders and PDF; CBR/RAR are import formats and are repacked before local reading.
+- Existing folder scan finds nested volume/chapter images up to its documented depth limit; regression coverage already exists in `MangaContentScanTest`.
+- Existing page enumeration and first-cover selection both use `AlphanumComparator`; added a regression test for 1, 2, 10 ordering.
+- Still pending: run the test suite, verify corrupt archive behavior, and manually verify page/scroll modes, RTL, Webtoon and double-page settings on Android.
 
 ### Phase 4 — Novel acceptance
 
