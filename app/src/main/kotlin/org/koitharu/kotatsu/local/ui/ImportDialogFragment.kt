@@ -186,6 +186,7 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 			getString(R.string.tsubaki_txt_encoding_utf16),
 			getString(R.string.tsubaki_txt_encoding_gb18030),
 			getString(R.string.tsubaki_txt_encoding_shift_jis),
+			getString(R.string.tsubaki_txt_encoding_windows31j),
 		)
 		var selectedIndex = 0
 		MaterialAlertDialogBuilder(requireContext())
