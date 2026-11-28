@@ -18,14 +18,19 @@ enum class LocalShelf {
 internal object LocalShelfClassifier {
 
     fun classify(file: File): LocalShelf {
-        if (!file.isDirectory) return classifyExtension(file.extension)
+        if (!file.isDirectory) return classifyArchive(file.extension)
+        // LocalMangaParser recognises EPUB collections only when EPUBs are direct children.
         val children = file.listFiles() ?: return LocalShelf.ALL
-        // LocalMangaParser treats a directory containing EPUBs as an EPUB collection.
         if (children.any { it.isFile && it.extension.equals("epub", ignoreCase = true) }) {
             return LocalShelf.NOVELS
         }
-        return if (children.any { child ->
-                child.isDirectory || child.isFile && classifyExtension(child.extension) == LocalShelf.COMICS
+        // Image folders can contain nested chapter directories. Do not label arbitrary folders
+        // as comics merely because they contain a subdirectory.
+        return if (file.walkTopDown().any { child ->
+                child.isFile && (
+                    classifyArchive(child.extension) == LocalShelf.COMICS ||
+                        child.extension.lowercase(Locale.ROOT) in IMAGE_EXTENSIONS
+                    )
             }) {
             LocalShelf.COMICS
         } else {
@@ -33,11 +38,12 @@ internal object LocalShelfClassifier {
         }
     }
 
-    private fun classifyExtension(extension: String): LocalShelf = when (extension.lowercase(Locale.ROOT)) {
+    private fun classifyArchive(extension: String): LocalShelf = when (extension.lowercase(Locale.ROOT)) {
         "epub" -> LocalShelf.NOVELS
-        in COMIC_EXTENSIONS -> LocalShelf.COMICS
+        in COMIC_ARCHIVE_EXTENSIONS -> LocalShelf.COMICS
         else -> LocalShelf.ALL
     }
 
-    private val COMIC_EXTENSIONS = setOf("cbz", "cbr", "zip", "pdf", "jpg", "jpeg", "png", "webp", "gif", "avif")
+    private val COMIC_ARCHIVE_EXTENSIONS = setOf("cbz", "cbr", "zip", "pdf")
+    private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "avif", "jxl", "bmp")
 }
