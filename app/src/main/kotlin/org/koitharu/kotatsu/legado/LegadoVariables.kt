@@ -2,7 +2,12 @@ package org.koitharu.kotatsu.legado
 
 /** Per-book/per-chapter transient variables. Never stored globally or shared between sources. */
 internal class LegadoVariables(initial: Map<String, String> = emptyMap()) {
-    private val values = LinkedHashMap(initial)
+    private val values = LinkedHashMap<String, String>()
+
+    init {
+        require(initial.size <= 64) { "Rule variable limit exceeded" }
+        initial.forEach { (key, value) -> put(key, value) }
+    }
 
     fun put(key: String, value: String) {
         require(validKey(key) && value.length <= 8192)

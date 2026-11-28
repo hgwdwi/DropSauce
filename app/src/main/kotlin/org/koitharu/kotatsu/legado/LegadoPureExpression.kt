@@ -36,13 +36,30 @@ internal class LegadoPureExpression private constructor(private val expression: 
             ).toString()
             val quoted = kotlinx.serialization.json.JsonPrimitive(data).toString()
             cx.evaluateString(scope,
-                "var java=(function(v){return {get:function(k){return Object.prototype.hasOwnProperty.call(v,k)?v[k]:'';}}})(JSON.parse(" + quoted + "));",
+                "var __legadoVars=Object.create(null);" +
+                    "var __legadoInitial=JSON.parse(" + quoted + ");" +
+                    "Object.keys(__legadoInitial).forEach(function(k){__legadoVars[k]=__legadoInitial[k];});" +
+                    "var java={" +
+                    "get:function(k){k=String(k);return Object.prototype.hasOwnProperty.call(__legadoVars,k)?__legadoVars[k]:'';}," +
+                    "put:function(k,v){k=String(k);if(!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(k))throw new Error('Invalid variable key');" +
+                    "if(!Object.prototype.hasOwnProperty.call(__legadoVars,k)&&Object.keys(__legadoVars).length>=64)throw new Error('Variable limit exceeded');" +
+                    "__legadoVars[k]=String(v);return __legadoVars[k];}" +
+                    "};",
                 "legado-bridge", 1, null)
             val value = cx.evaluateString(scope, "(" + expression + ")", "legado-expression", 1, null)
             require(value == null || value is CharSequence || value is Number || value is Boolean ||
                 org.mozilla.javascript.Undefined.isUndefined(value)) { "Expression must return a scalar" }
             val output = if (value == null || org.mozilla.javascript.Undefined.isUndefined(value)) "" else Context.toString(value)
             require(output.length <= MAX_INPUT) { "Expression result exceeds limit" }
+            val updated = cx.evaluateString(scope, "JSON.stringify(__legadoVars)", "legado-state", 1, null)
+            val json = kotlinx.serialization.json.Json.parseToJsonElement(Context.toString(updated)) as? kotlinx.serialization.json.JsonObject
+                ?: error("Invalid Java bridge state")
+            require(json.size <= 64) { "Rule variable limit exceeded" }
+            for ((key, item) in json) {
+                val text = (item as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                    ?: error("Rule variables must remain strings")
+                variables.put(key, text)
+            }
             output
         }
     }
@@ -75,7 +92,7 @@ internal class LegadoPureExpression private constructor(private val expression: 
                     is Name -> {
                         val parent = node.parent
                         if (parent is PropertyGet && parent.property === node) {
-                            require(node.identifier in stringMethods || node.identifier == "get" || node.identifier == "length")
+                            require(node.identifier in stringMethods || node.identifier in setOf("get", "put", "length"))
                         } else require(node.identifier in setOf("result", "java"))
                     }
                     is PropertyGet -> {
@@ -87,19 +104,22 @@ internal class LegadoPureExpression private constructor(private val expression: 
                             require(node.parent is FunctionCall && (node.parent as FunctionCall).target === node)
                             require(target is Name)
                             require((target.identifier == "result" && property in stringMethods) ||
-                                (target.identifier == "java" && property == "get"))
+                                (target.identifier == "java" && property in setOf("get", "put")))
                         }
                     }
                     is FunctionCall -> {
                         val target = node.target as? PropertyGet ?: error("Unsupported function")
+                        val method = target.property.identifier
                         require(node.arguments.size <= 2)
-                        require(node.arguments.all { it is StringLiteral || it is NumberLiteral }) { "Only literal method arguments supported" }
-                        if (target.property.identifier == "replace") {
-                            require(node.arguments.size == 2 && node.arguments.all { it is StringLiteral })
-                        }
-                        if (target.property.identifier == "get") {
-                            require(node.arguments.size == 1 && node.arguments[0] is StringLiteral &&
+                        when (method) {
+                            "get" -> require(node.arguments.size == 1 && node.arguments[0] is StringLiteral &&
                                 LegadoVariables.validKey((node.arguments[0] as StringLiteral).value))
+                            "put" -> require(node.arguments.size == 2 && node.arguments[0] is StringLiteral &&
+                                LegadoVariables.validKey((node.arguments[0] as StringLiteral).value))
+                            "replace" -> require(node.arguments.size == 2 && node.arguments.all { it is StringLiteral })
+                            else -> require(node.arguments.all { it is StringLiteral || it is NumberLiteral }) {
+                                "Only literal method arguments supported"
+                            }
                         }
                     }
                     is InfixExpression -> require(node.operator in binaryOperators)
