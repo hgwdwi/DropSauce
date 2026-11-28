@@ -13,7 +13,9 @@ This PR adds the V0.2 synthetic novel fixtures to the real TsubakiReader TXT-to-
 
 ## Charset behavior
 
-The import flow still uses the existing automatic decoder: UTF-8, UTF-8 BOM, UTF-16 BOM, and GB18030 fallback. The converter now also accepts an explicit \`Charset\` override for callers that know the source encoding, including Shift_JIS. This PR does not add an encoding picker to the import UI, so Shift_JIS is testable through the converter API but is not yet selectable by end users.
+The TXT import UI now offers five choices: Automatic, UTF-8, UTF-16, GB18030, and Shift_JIS. Automatic preserves the existing behavior (UTF-8 first, then GB18030); a UTF-8 or UTF-16 BOM takes precedence over the selected option. Explicit selections use strict decoding and fail rather than silently falling back when the byte sequence is malformed. The UTF-16 option is most reliable for files carrying a BOM.
+
+For a multi-file selection or TXT-folder import, one encoding choice is applied to all TXT files in that batch. Per-file mixed-encoding detection is not included yet. Non-TXT archives ignore this option. URI permissions are retained only after the user confirms the encoding choice.
 
 ## Offset behavior
 
