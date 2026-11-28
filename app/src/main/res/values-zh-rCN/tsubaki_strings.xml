@@ -22,4 +22,5 @@
     <string name="tsubaki_legado_preview_limit">预览仅显示前 200 章</string>
     <string name="tsubaki_legado_save_chapter">将本章保存为离线书籍</string>
     <string name="tsubaki_legado_save_first">保存前 %1$d 章为离线书籍</string>
+    <string name="tsubaki_legado_cookies_clear">清除 Cookie</string>
 </resources>

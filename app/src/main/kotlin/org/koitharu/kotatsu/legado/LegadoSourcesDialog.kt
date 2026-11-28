@@ -46,6 +46,9 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
 
     @Inject lateinit var importer: SingleMangaImporter
 
+    private val cookieDirectory by lazy { File(requireContext().applicationContext.filesDir, "legado/cookies") }
+    private fun httpReader(source: LegadoSourcePreflight.Inspection) = LegadoHttpReader(source, cookieDirectory)
+
     private val store by lazy {
         LegadoSourceStore(File(requireContext().applicationContext.filesDir, "legado"))
     }
@@ -150,7 +153,7 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                             Button(onClick = {
                                 val requested = chapters.take(count)
                                 task {
-                                    val reader = LegadoHttpReader(selected)
+                                    val reader = httpReader(selected)
                                     val downloaded = ArrayList<TxtNovelConverter.Chapter>()
                                     var chars = 0L
                                     for (chapter in requested) {
@@ -268,9 +271,13 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                                             Text(stringResource(R.string.tsubaki_legado_search))
                                         }
                                         TextButton(enabled = !busy, onClick = {
+                                            task { withContext(Dispatchers.IO) { LegadoCookieJar.forSource(cookieDirectory, source.url).clear() } }
+                                        }) { Text(stringResource(R.string.tsubaki_legado_cookies_clear)) }
+                                        TextButton(enabled = !busy, onClick = {
                                             task {
                                                 sources = withContext(Dispatchers.IO) {
                                                     store.remove(source.url)
+                                                    LegadoCookieJar.forSource(cookieDirectory, source.url).clear()
                                                     store.list()
                                                 }
                                             }
