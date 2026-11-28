@@ -199,7 +199,7 @@ class ImportDialogFragment : ComposeAlertDialogFragment() {
 			}
 			.setNegativeButton(android.R.string.cancel, null)
 			.setPositiveButton(R.string.tsubaki_txt_encoding_import) { _, _ ->
-				 enqueueImport(uris, textFolder, encodings[selectedIndex].intentValue)
+				enqueueImport(uris, textFolder, encodings[selectedIndex].intentValue)
 			}
 			.show()
 	}
