@@ -712,4 +712,8 @@
     <string name="local_shelf_all">全部</string>
     <string name="local_shelf_comics">漫画</string>
     <string name="local_shelf_novels">小说</string>
+    <string name="text_local_comics_empty">还没有漫画</string>
+    <string name="text_local_comics_empty_hint">导入 CBZ、CBR、ZIP、PDF 或图片文件夹，开始阅读。</string>
+    <string name="text_local_novels_empty">还没有小说</string>
+    <string name="text_local_novels_empty_hint">导入 EPUB 或 TXT 小说，将它加入书架。</string>
 </resources>
