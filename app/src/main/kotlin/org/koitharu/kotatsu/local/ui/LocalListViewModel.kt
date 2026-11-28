@@ -1,7 +1,6 @@
 package org.koitharu.kotatsu.local.ui
 
 import android.content.SharedPreferences
-import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +35,6 @@ import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.local.domain.DeleteLocalMangaUseCase
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.model.Manga
-import java.io.File
 import org.koitharu.kotatsu.remotelist.ui.RemoteListViewModel
 import org.koitharu.kotatsu.settings.sources.catalog.ExtensionStoreManager
 import javax.inject.Inject
