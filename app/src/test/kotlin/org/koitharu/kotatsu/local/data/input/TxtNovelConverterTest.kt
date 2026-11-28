@@ -7,6 +7,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.Charset
+import java.nio.charset.CharacterCodingException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import javax.xml.parsers.DocumentBuilderFactory
@@ -27,6 +28,38 @@ class TxtNovelConverterTest {
         assertEquals(text, TxtNovelConverter.decode(text.toByteArray(Charset.forName("GB18030"))))
         assertEquals(text, TxtNovelConverter.decode(byteArrayOf(0xff.toByte(), 0xfe.toByte()) +
             text.toByteArray(Charsets.UTF_16LE)))
+    }
+
+    @Test
+    fun decodesShiftJisWhenExplicitlySelected() {
+        val original = "プロローグ\\n第１話 夜\\n本文"
+        val shiftJis = Charset.forName("Shift_JIS")
+        assertEquals(original, TxtNovelConverter.decode(original.toByteArray(shiftJis), shiftJis))
+    }
+
+    @Test(expected = CharacterCodingException::class)
+    fun explicitCharsetRejectsMalformedInputInsteadOfFallingBack() {
+        TxtNovelConverter.decode(byteArrayOf(0x82.toByte()), Charset.forName("Shift_JIS"))
+    }
+
+    @Test
+    fun unicodeBomTakesPrecedenceOverExplicitCharset() {
+        val original = "第一章\\n正文"
+        val bytes = byteArrayOf(0xef.toByte(), 0xbb.toByte(), 0xbf.toByte()) +
+            original.toByteArray(Charsets.UTF_8)
+        assertEquals(original, TxtNovelConverter.decode(bytes, Charset.forName("Shift_JIS")))
+    }
+
+    @Test
+    fun txtEncodingIntentValuesAreExplicitlyAllowlisted() {
+        assertEquals(TxtNovelEncoding.AUTO, TxtNovelEncoding.fromIntentValue(null))
+        assertEquals(TxtNovelEncoding.SHIFT_JIS, TxtNovelEncoding.fromIntentValue("Shift_JIS"))
+        assertEquals(Charset.forName("GB18030"), TxtNovelEncoding.fromIntentValue("GB18030").charsetOrNull())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnknownTxtEncodingIntentValue() {
+        TxtNovelEncoding.fromIntentValue("x-user-defined")
     }
 
     @Test
