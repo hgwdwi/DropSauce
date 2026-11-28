@@ -23,4 +23,12 @@
     <string name="tsubaki_legado_save_chapter">Save chapter as offline book</string>
     <string name="tsubaki_legado_save_first">Save first %1$d chapters as offline book</string>
     <string name="tsubaki_legado_cookies_clear">Clear cookies</string>
+    <string name="tsubaki_txt_encoding_title">TXT text encoding</string>
+    <string name="tsubaki_txt_encoding_message">Choose how to decode the selected TXT files. A Unicode BOM, when present, takes precedence.</string>
+    <string name="tsubaki_txt_encoding_auto">Automatic (UTF-8, then GB18030)</string>
+    <string name="tsubaki_txt_encoding_utf8">UTF-8</string>
+    <string name="tsubaki_txt_encoding_utf16">UTF-16 (BOM recommended)</string>
+    <string name="tsubaki_txt_encoding_gb18030">GB18030</string>
+    <string name="tsubaki_txt_encoding_shift_jis">Shift_JIS (Japanese)</string>
+    <string name="tsubaki_txt_encoding_import">Import</string>
 </resources>
