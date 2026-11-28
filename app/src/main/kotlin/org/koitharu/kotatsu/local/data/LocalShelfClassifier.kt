@@ -9,7 +9,7 @@ import java.util.Locale
  * This deliberately does not inspect or mutate Manga tags or the persisted index. Downloaded
  * novels and comics can both contain index.json, so the index is not a reliable discriminator.
  */
-internal enum class LocalShelf {
+enum class LocalShelf {
     ALL,
     COMICS,
     NOVELS,
