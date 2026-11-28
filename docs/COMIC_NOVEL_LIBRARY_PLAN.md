@@ -68,7 +68,8 @@ The first implementation should expose **All / Comics / Novels** as a view filte
 - Existing parser supports CBZ/ZIP image archives, image folders and PDF; CBR/RAR are import formats and are repacked before local reading.
 - Existing folder scan finds nested volume/chapter images up to its documented depth limit; regression coverage already exists in `MangaContentScanTest`.
 - Existing page enumeration and first-cover selection both use `AlphanumComparator`; added a regression test for 1, 2, 10 ordering.
-- Still pending: run the test suite, verify corrupt archive behavior, and manually verify page/scroll modes, RTL, Webtoon and double-page settings on Android.
+- Added the numeric-order regression test to the manual Preview Build workflow so it runs with the rest of the unit suite when that workflow is dispatched on this branch.
+- Still pending: execute the workflow, verify corrupt archive behavior, and manually verify page/scroll modes, RTL, Webtoon and double-page settings on Android.
 
 ### Phase 4 — Novel acceptance
 
@@ -88,6 +89,6 @@ The first implementation should expose **All / Comics / Novels** as a view filte
 ## Release gate
 
 - Unit tests pass.
-- Debug APK builds.
+- Debug or preview APK builds.
 - Existing import and reader regression tests pass.
 - Manual Android acceptance is recorded separately; CI success must not be represented as physical-device validation.
