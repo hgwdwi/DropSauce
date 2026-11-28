@@ -26,7 +26,7 @@ class LegadoHttpReaderIntegrationTest {
 
     @After
     fun tearDown() {
-        server.shutdown()
+        server.close()
     }
 
     @Test
@@ -41,7 +41,7 @@ class LegadoHttpReaderIntegrationTest {
         assertEquals(server.url("/book/1").toString(), books.single().url)
         val request = server.takeRequest()
         assertEquals("GET", request.method)
-        assertEquals("/search?q=first", request.path)
+        assertEquals("/search?q=first", request.target)
     }
 
     @Test
@@ -61,8 +61,8 @@ class LegadoHttpReaderIntegrationTest {
 
         val first = server.takeRequest()
         val second = server.takeRequest()
-        assertNull(first.getHeader("Cookie"))
-        assertEquals("sid=abc123", second.getHeader("Cookie"))
+        assertNull(first.headers["Cookie"])
+        assertEquals("sid=abc123", second.headers["Cookie"])
     }
 
     @Test
@@ -79,8 +79,8 @@ class LegadoHttpReaderIntegrationTest {
         val books = reader.search("redirect")
 
         assertEquals("Example Novel", books.single().title)
-        assertEquals("/search?q=redirect", server.takeRequest().path)
-        assertEquals("/landing", server.takeRequest().path)
+        assertEquals("/search?q=redirect", server.takeRequest().target)
+        assertEquals("/landing", server.takeRequest().target)
     }
 
     @Test
@@ -99,9 +99,9 @@ class LegadoHttpReaderIntegrationTest {
         val post = server.takeRequest()
         val redirected = server.takeRequest()
         assertEquals("POST", post.method)
-        assertEquals("q=hello", post.body.readUtf8())
+        assertEquals("q=hello", post.body?.utf8())
         assertEquals("GET", redirected.method)
-        assertEquals("/results", redirected.path)
+        assertEquals("/results", redirected.target)
     }
 
     @Test
@@ -120,10 +120,10 @@ class LegadoHttpReaderIntegrationTest {
         val post = server.takeRequest()
         val redirected = server.takeRequest()
         assertEquals("POST", post.method)
-        assertEquals("q=hello", post.body.readUtf8())
+        assertEquals("q=hello", post.body?.utf8())
         assertEquals("POST", redirected.method)
-        assertEquals("q=hello", redirected.body.readUtf8())
-        assertEquals("/retry", redirected.path)
+        assertEquals("q=hello", redirected.body?.utf8())
+        assertEquals("/retry", redirected.target)
     }
 
     @Test
