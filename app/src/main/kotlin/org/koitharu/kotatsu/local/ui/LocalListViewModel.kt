@@ -184,7 +184,7 @@ class LocalListViewModel @Inject constructor(
 		)
 	}
 
-	private suspend fun createFilterHeader(maxCount: Int): QuickFilter?
+	private suspend fun createFilterHeader(maxCount: Int): QuickFilter? {
 		val appliedTags = filterCoordinator.snapshot().listFilter.tags
 		val availableTags = repository.getFilterOptions().availableTags
 		if (appliedTags.isEmpty() && availableTags.size < 3) {
