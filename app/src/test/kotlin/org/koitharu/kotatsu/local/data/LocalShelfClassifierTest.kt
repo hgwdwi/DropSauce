@@ -43,12 +43,26 @@ class LocalShelfClassifierTest {
     }
 
     @Test
+    fun classifiesNestedImageChapterFoldersAsComics() {
+        val directory = Files.createTempDirectory("nested-comic-shelf-test").toFile()
+        try {
+            val chapter = File(directory, "Chapter 1")
+            assertEquals(true, chapter.mkdir())
+            File(chapter, "001.webp").createNewFile()
+            assertEquals(LocalShelf.COMICS, LocalShelfClassifier.classify(directory))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun keepsUnknownFilesAndEmptyDirectoriesInAllShelf() {
         listOf("book.txt", "archive.rar", "README").forEach {
             assertEquals(it, LocalShelf.ALL, LocalShelfClassifier.classify(File(it)))
         }
         val directory = Files.createTempDirectory("unknown-shelf-test").toFile()
         try {
+            File(directory, "unrelated").mkdir()
             assertEquals(LocalShelf.ALL, LocalShelfClassifier.classify(directory))
         } finally {
             directory.deleteRecursively()
