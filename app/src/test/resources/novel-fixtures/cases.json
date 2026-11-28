@@ -1,0 +1,12 @@
+[
+  {"id":"zh","expected":[{"title":"第一章 开端","offset_cp":0,"offset_utf16":0},{"title":"第二章 归来","offset_cp":11,"offset_utf16":11}],"charset":"UTF-8","payload_base64":"56ys5LiA56ugIOW8gOerrwrmraPmlofjgIIK56ys5LqM56ugIOW9kuadpQrnu5PlsL7jgII="},
+  {"id":"volume","expected":[{"title":"第一卷","offset_cp":0,"offset_utf16":0},{"title":"第一回：风起","offset_cp":5,"offset_utf16":5},{"title":"番外 一","offset_cp":13,"offset_utf16":13}],"charset":"GB18030","payload_base64":"tdrSu77tDQq12tK7u9ijurfnxvANCreszeIg0rsNCg=="},
+  {"id":"neg","expected":[],"charset":"UTF-8","payload_base64":"5LuW6K+077ya4oCc56ys5LiA56ugIOW8gOerr+KAneOAggrmraPmlofnrKzkuIDnq6DjgIIK56ys5LiA56ug55qE5YaF5a655b6I5pyJ6Laj44CCCuOAjOesrDHoqbHjgI0K56ys5LiA56ug55qE5YaF5a655b6I5pyJ6LajCg=="},
+  {"id":"jp","expected":[{"title":"プロローグ","offset_cp":0,"offset_utf16":0},{"title":"第１話 夜","offset_cp":12,"offset_utf16":12},{"title":"エピローグ","offset_cp":18,"offset_utf16":18}],"charset":"Shift_JIS","payload_base64":"g3aDjYONgVuDTwqWe5W2gsWCt4FCCpHmglCYYiCW6QqDR4Nzg42BW4NPCg=="},
+  {"id":"unicode","expected":[{"title":"第2章：夜色","offset_cp":6,"offset_utf16":7}],"charset":"UTF-16","payload_base64":"//492ADeTVKHZQoAIAAgACx7MgDgehr/HFlyggoA"},
+  {"id":"special","expected":[{"title":"楔子","offset_cp":0,"offset_utf16":0},{"title":"尾声","offset_cp":6,"offset_utf16":6},{"title":"后记","offset_cp":9,"offset_utf16":9}],"charset":"UTF-8","payload_base64":"5qWU5a2QCuato+aWhwrlsL7lo7AK5ZCO6K6wCg=="},
+  {"id":"mixed","expected":[{"title":"第３章：风","offset_cp":0,"offset_utf16":0},{"title":"第十二幕 雨","offset_cp":6,"offset_utf16":6},{"title":"第10回","offset_cp":13,"offset_utf16":13}],"charset":"UTF-8","payload_base64":"77u/56ys77yT56ug77ya6aOOCuesrOWNgeS6jOW5lSDpm6gK56ysMTDlm54K"},
+  {"id":"empty","expected":[],"charset":"UTF-8","payload_base64":""},
+  {"id":"crlf","expected":[{"title":"第一章","offset_cp":4,"offset_utf16":4}],"charset":"UTF-8","payload_base64":"5YmN572uDQrnrKzkuIDnq6ANCuato+aWhw0K"},
+  {"id":"emoji_crlf","expected":[{"title":"第３章：星","offset_cp":5,"offset_utf16":6}],"charset":"UTF-8","payload_base64":"8J+YgOWJjeiogA0K56ys77yT56ug77ya5pifDQrmraPmloc="}
+]
