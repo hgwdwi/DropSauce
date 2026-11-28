@@ -88,21 +88,17 @@ internal class LegadoHttpReader(
             } else builder.get()
             val response = client.newCall(builder.build()).await()
             if (response.code in setOf(301, 302, 303, 307, 308)) {
-                val status = response.code
-                val location = response.header("Location")
-                val next = location?.let { response.request.url.resolve(it) }
+                val target = LegadoRedirectPolicy.resolve(
+                    origin, response.request.url, response.code, response.header("Location"), method, requestBody,
+                )
                 response.close()
-                requireNotNull(next) { "Redirect response has no valid Location" }
-                require(sameOrigin(next)) { "Cross-origin redirect is not supported" }
                 require(++redirects <= MAX_REDIRECTS) { "Too many redirects" }
-                if (status == 303 || ((status == 301 || status == 302) && method == "POST")) {
-                    method = "GET"
-                    requestBody = null
-                }
-                current = next
+                current = target.url
+                method = target.method
+                requestBody = target.body
                 continue
             }
-            response.use { finalResponse ->
+            return@withContext response.use { finalResponse ->
                 if (!finalResponse.isSuccessful) throw IOException("HTTP " + finalResponse.code)
                 val body = finalResponse.body ?: throw IOException("Empty response")
                 val media = body.contentType()
@@ -132,10 +128,6 @@ internal class LegadoHttpReader(
         }
         throw IOException("Redirect loop")
     }
-
-    private fun sameOrigin(url: okhttp3.HttpUrl): Boolean =
-        url.scheme == origin.scheme && url.host == origin.host && url.port == origin.port &&
-            url.username.isEmpty() && url.password.isEmpty()
 
     companion object {
         private const val MAX_BYTES = 4 * 1024 * 1024
