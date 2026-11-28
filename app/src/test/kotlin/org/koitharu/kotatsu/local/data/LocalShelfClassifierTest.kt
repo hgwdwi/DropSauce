@@ -21,6 +21,11 @@ class LocalShelfClassifierTest {
     }
 
     @Test
+    fun doesNotTreatAnImageFileAsAStandaloneComicBook() {
+        assertEquals(LocalShelf.ALL, LocalShelfClassifier.classify(File("cover.jpg")))
+    }
+
+    @Test
     fun classifiesDirectoriesContainingEpubCollectionsAsNovels() {
         val directory = Files.createTempDirectory("novel-shelf-test").toFile()
         try {
