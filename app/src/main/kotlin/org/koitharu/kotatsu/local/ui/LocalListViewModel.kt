@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.local.ui
 
 import android.content.SharedPreferences
+import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +37,6 @@ import org.koitharu.kotatsu.local.domain.DeleteLocalMangaUseCase
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.model.Manga
 import java.io.File
-import androidx.core.net.toUri
 import org.koitharu.kotatsu.remotelist.ui.RemoteListViewModel
 import org.koitharu.kotatsu.settings.sources.catalog.ExtensionStoreManager
 import javax.inject.Inject
@@ -71,12 +71,11 @@ class LocalListViewModel @Inject constructor(
 	val onMangaRemoved = MutableEventFlow<Unit>()
 	private val showInlineFilter: Boolean = savedStateHandle[AppRouter.KEY_IS_BOTTOMTAB] ?: false
 
-	var selectedShelf: LocalShelf
+	var selectedShelf: LocalShelf = LocalShelf.ALL
 		private set(value) {
 			field = value
 			savedStateHandle[KEY_LOCAL_SHELF] = value.name
 		}
-		get() = field
 
 	init {
 		selectedShelf = savedStateHandle.get<String>(KEY_LOCAL_SHELF)
