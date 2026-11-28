@@ -13,7 +13,7 @@ class LegadoCookieJarTest {
         val directory = Files.createTempDirectory("legado-cookie-test").toFile()
         val file = directory.resolve("source.json")
         val cookie = Cookie.Builder().name("session").value("abc").hostOnlyDomain("example.com").path("/")
-            .expiresAt(System.currentTimeMillis() + 60_000).httpOnly.secure.build()
+            .expiresAt(System.currentTimeMillis() + 60_000).httpOnly().secure().build()
         LegadoCookieJar(file).saveFromResponse(url, listOf(cookie))
         val restored = LegadoCookieJar(file)
         assertEquals("abc", restored.loadForRequest(url).single().value)

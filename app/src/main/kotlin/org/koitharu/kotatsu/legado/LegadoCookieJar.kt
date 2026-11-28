@@ -73,8 +73,8 @@ internal class LegadoCookieJar(private val file: File? = null) : CookieJar {
                     expiresAt <= System.currentTimeMillis() || value.length > MAX_COOKIE_CHARS) continue
                 val builder = Cookie.Builder().name(name).value(value).path(path).expiresAt(expiresAt)
                 if (obj.boolean("hostOnly")) builder.hostOnlyDomain(domain) else builder.domain(domain)
-                if (obj.boolean("secure")) builder.secure
-                if (obj.boolean("httpOnly")) builder.httpOnly
+                if (obj.boolean("secure")) builder.secure()
+                if (obj.boolean("httpOnly")) builder.httpOnly()
                 runCatching { builder.build() }.getOrNull()?.let { cookies[key(it)] = it }
             }
             pruneExpired(System.currentTimeMillis())
