@@ -43,6 +43,19 @@ class TxtNovelConverterTest {
     }
 
     @Test
+    fun decodesWindows31jWhenExplicitlySelected() {
+        val original = "髙①㈱"
+        val windows31j = Charset.forName("windows-31j")
+        assertEquals(original, TxtNovelConverter.decode(original.toByteArray(windows31j), windows31j))
+    }
+
+    @Test(expected = CharacterCodingException::class)
+    fun shiftJisRejectsWindows31jExtensionBytes() {
+        val bytes = "髙".toByteArray(Charset.forName("windows-31j"))
+        TxtNovelConverter.decode(bytes, Charset.forName("Shift_JIS"))
+    }
+
+    @Test
     fun unicodeBomTakesPrecedenceOverExplicitCharset() {
         val original = "第一章\n正文"
         val bytes = byteArrayOf(0xef.toByte(), 0xbb.toByte(), 0xbf.toByte()) +
@@ -55,6 +68,7 @@ class TxtNovelConverterTest {
         assertEquals(TxtNovelEncoding.AUTO, TxtNovelEncoding.fromIntentValue(null))
         assertEquals(TxtNovelEncoding.SHIFT_JIS, TxtNovelEncoding.fromIntentValue("Shift_JIS"))
         assertEquals(Charset.forName("GB18030"), TxtNovelEncoding.fromIntentValue("GB18030").charsetOrNull())
+        assertEquals(Charset.forName("windows-31j"), TxtNovelEncoding.fromIntentValue("Windows-31J").charsetOrNull())
     }
 
     @Test(expected = IllegalArgumentException::class)
