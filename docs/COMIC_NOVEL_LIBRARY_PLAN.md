@@ -71,10 +71,11 @@ The first implementation should expose **All / Comics / Novels** as a view filte
 - Added the numeric-order regression test to the manual Preview Build workflow so it runs with the rest of the unit suite when that workflow is dispatched on this branch.
 - Still pending: execute the workflow, verify corrupt archive behavior, and manually verify page/scroll modes, RTL, Webtoon and double-page settings on Android.
 
-### Phase 4 — Novel acceptance
+### Phase 4 — Novel import and reader acceptance (converter/parser unit coverage extended)
 
-- Validate EPUB and TXT-converted EPUB import, metadata, TOC and chapter navigation.
-- Verify scroll/page modes, resume position, font/theme settings and Android TTS.
+- Existing TXT converter tests cover UTF-8 BOM, GB18030, UTF-16, Shift-JIS/Windows-31J, chapter splitting, XHTML generation and EPUB ZIP structure.
+- Added pure EPUB path-resolution tests for relative spine links and percent-encoded entry names.
+- Still pending: run the unit suite; verify EPUB metadata, TOC and chapter navigation in-app; verify scroll/page modes, resume position, font/theme settings and Android TTS.
 - Verify novel downloads that retain source indexes still map to the original source and chapter IDs.
 
 ## Non-goals for this change
