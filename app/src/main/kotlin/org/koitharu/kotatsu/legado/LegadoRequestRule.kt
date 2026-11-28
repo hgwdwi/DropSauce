@@ -37,7 +37,22 @@ internal object LegadoRequestRule {
         val charset = Charset.forName(encoding)
         val encoded = URLEncoder.encode(query, charset.name()).replace("+", "%20")
         fun expand(value: String): String {
-            val expanded = value.replace("{{key}}", encoded).replace("{{page}}", page.toString())
+            val expanded = value.replace("{{key}}", encoded).replace(
+                Regex("""\{\{\s*page\s*(?:([+\-*/%])\s*(\d{1,5}))?\s*\}\}""")
+            ) { match ->
+                val number = match.groupValues[2].toLongOrNull() ?: 0L
+                val p = page.toLong()
+                val result = when (match.groupValues[1]) {
+                    "+" -> p + number
+                    "-" -> p - number
+                    "*" -> p * number
+                    "/" -> { require(number > 0); p / number }
+                    "%" -> { require(number > 0); p % number }
+                    else -> p
+                }
+                require(result in 0..100_000_000L) { "Page expression out of bounds" }
+                result.toString()
+            }
             require(expanded.none { it in "{}<>\r\n" } && !expanded.contains("@js:", true))
             return expanded
         }

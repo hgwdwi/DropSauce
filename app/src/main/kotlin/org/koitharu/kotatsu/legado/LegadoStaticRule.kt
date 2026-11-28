@@ -55,7 +55,7 @@ internal class LegadoStaticRule private constructor(
         val groups = ArrayList<List<Any>>()
         for (branch in branches) {
             val result = when (branch.mode) {
-                Mode.JSON -> jsonPath(root, branch.expression)
+                Mode.JSON -> LegadoJsonPath.parse(branch.expression).select(root)
                 Mode.VARIABLE -> listOfNotNull(variables.get(branch.expression))
                 Mode.CSS, Mode.DEFAULT, Mode.XPATH -> {
                     val element = root as? Element ?: continue
@@ -98,7 +98,6 @@ internal class LegadoStaticRule private constructor(
         private const val MAX_RESULTS = 10000
         private val blocked = listOf("@regex:")
         private val extractors = setOf("text", "ownText", "textNodes", "html", "all", "href", "src", "content", "title", "data-src", "data-original")
-        private val jsonToken = Regex("""(?:\.([A-Za-z_][A-Za-z0-9_-]*)|\['([^']+)'\]|\["([^"]+)"\]|\[(-?\d+|\*)\])""")
         private val defaultStep = Regex("""(class|id|tag|text)\.([^@.]+)(?:\.(-?\d+))?""")
         private val xpathAttribute = Regex("""/(@[A-Za-z_][A-Za-z0-9_:-]*|text\(\))$""")
 
@@ -127,7 +126,7 @@ internal class LegadoStaticRule private constructor(
                     }
                     rule.startsWith("@json:", true) || rule.startsWith("$.") || rule.startsWith("$[") || rule == "$" -> {
                         val expression = if (rule.startsWith("@json:", true)) rule.substring(6).trim() else rule
-                        validateJsonPath(expression)
+                        LegadoJsonPath.parse(expression)
                         Branch(Mode.JSON, expression, null)
                     }
                     rule.startsWith("@xpath:", true) || rule.startsWith("//") || rule.startsWith(".//") -> {
@@ -268,34 +267,5 @@ internal class LegadoStaticRule private constructor(
             return current
         }
 
-        private fun validateJsonPath(path: String) {
-            require(path.startsWith("$"))
-            var end = 1
-            for (match in jsonToken.findAll(path, 1)) {
-                require(match.range.first == end) { "Unsupported JSONPath segment" }
-                end = match.range.last + 1
-            }
-            require(end == path.length) { "Unsupported JSONPath segment" }
-        }
-
-        private fun jsonPath(root: Any, path: String): List<JsonElement> {
-            var current = listOfNotNull(root as? JsonElement)
-            for (match in jsonToken.findAll(path, 1)) {
-                val key = match.groupValues.drop(1).take(3).firstOrNull { it.isNotEmpty() }
-                val index = match.groupValues[4]
-                current = current.flatMap { node ->
-                    when {
-                        key != null -> listOfNotNull((node as? JsonObject)?.get(key))
-                        index == "*" -> (node as? JsonArray)?.toList() ?: emptyList()
-                        else -> {
-                            val array = node as? JsonArray ?: return@flatMap emptyList()
-                            val i = index.toIntOrNull() ?: return@flatMap emptyList()
-                            listOfNotNull(array.getOrNull(if (i < 0) array.size + i else i))
-                        }
-                    }
-                }.take(MAX_RESULTS)
-            }
-            return current.filterNot { it is JsonNull }
-        }
     }
 }

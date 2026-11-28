@@ -76,4 +76,12 @@ class LegadoStaticRuleTest {
             assertTrue(rule, runCatching { LegadoStaticRule.parse(rule, false) }.isFailure)
         }
     }
+
+    @Test fun jsonPathSlicesUnionsAndRecursiveFields() {
+        val root = Json.parseToJsonElement("""{"books":[{"title":"甲"},{"title":"乙"},{"title":"丙"},{"title":"丁"}]}""")
+        assertEquals(listOf("甲", "丙"), LegadoStaticRule.parse("$.books[0:4:2].title", false).values(root))
+        assertEquals(listOf("丁", "甲"), LegadoStaticRule.parse("$.books[-1,0].title", false).values(root))
+        assertEquals(listOf("甲", "乙", "丙", "丁"), LegadoStaticRule.parse("$..title", false).values(root))
+        assertTrue(runCatching { LegadoStaticRule.parse("$.books[?(@.title)]", false) }.isFailure)
+    }
 }

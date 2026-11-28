@@ -45,4 +45,11 @@ class LegadoRequestRuleTest {
     fun rejectsDynamicOptions() {
         LegadoRequestRule.search(source("""/search?q={{key}},{"webView":true}"""), "x", 1)
     }
+
+    @Test fun expandsBoundedPageArithmetic() {
+        val r = LegadoRequestRule.search(source("/search?q={{key}}&offset={{page*20}}&index={{page - 1}}"), "x", 3)
+        assertEquals("https://example.com/search?q=x&offset=60&index=2", r.url)
+        assertTrue(runCatching { LegadoRequestRule.search(source("/?q={{key}}&p={{page/0}}"), "x", 1) }.isFailure)
+        assertTrue(runCatching { LegadoRequestRule.search(source("/?q={{key}}&p={{page-9}}"), "x", 1) }.isFailure)
+    }
 }
