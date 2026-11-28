@@ -21,7 +21,6 @@ class LocalListMenuProvider(
 
 	override fun onPrepareMenu(menu: Menu) {
 		super.onPrepareMenu(menu)
-		menu.findItem(R.id.action_shelf_comics)?.isChecked = false
 		menu.findItem(R.id.action_filter)?.isVisible = fragment.router.isFilterSupported()
 	}
 
