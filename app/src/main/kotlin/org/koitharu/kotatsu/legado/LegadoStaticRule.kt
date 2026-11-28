@@ -18,6 +18,7 @@ internal class LegadoStaticRule private constructor(
     private val list: Boolean,
     private val replacement: LegadoReplacement?,
     private val writes: Map<String, LegadoStaticRule> = emptyMap(),
+    private val dynamic: LegadoDynamicRule? = null,
 ) {
     private enum class Mode { CSS, DEFAULT, XPATH, JSON, VARIABLE }
     private data class Branch(val mode: Mode, val expression: String, val extraction: String?)
@@ -48,6 +49,7 @@ internal class LegadoStaticRule private constructor(
     }
 
     private fun evaluate(root: Any, body: Boolean, variables: LegadoVariables): List<Any> {
+        dynamic?.let { return it.evaluate(root, variables) }
         for ((key, rule) in writes) variables.put(key, rule.values(root, variables).firstOrNull().orEmpty())
         val out = ArrayList<Any>()
         val groups = ArrayList<List<Any>>()
@@ -94,7 +96,7 @@ internal class LegadoStaticRule private constructor(
 
     companion object {
         private const val MAX_RESULTS = 10000
-        private val blocked = listOf("@js:", "<js>", "{{", "@regex:")
+        private val blocked = listOf("@regex:")
         private val extractors = setOf("text", "ownText", "textNodes", "html", "all", "href", "src", "content", "title", "data-src", "data-original")
         private val jsonToken = Regex("""(?:\.([A-Za-z_][A-Za-z0-9_-]*)|\['([^']+)'\]|\["([^"]+)"\]|\[(-?\d+|\*)\])""")
         private val defaultStep = Regex("""(class|id|tag|text)\.([^@.]+)(?:\.(-?\d+))?""")
@@ -102,6 +104,10 @@ internal class LegadoStaticRule private constructor(
 
         fun parse(raw: String, list: Boolean): LegadoStaticRule {
             require(raw.length in 1..2048 && blocked.none { raw.contains(it, true) }) { "Unsupported dynamic rule" }
+            if (LegadoDynamicRule.recognizes(raw)) {
+                require(!list) { "Dynamic list rules are unsupported" }
+                return LegadoStaticRule(emptyList(), null, false, null, dynamic = LegadoDynamicRule.parse(raw))
+            }
             val (ruleText, writes) = parseWrites(raw)
             val delimiter = ruleText.indexOf("##")
             require(!list || delimiter < 0) { "Replacement is not a list rule" }

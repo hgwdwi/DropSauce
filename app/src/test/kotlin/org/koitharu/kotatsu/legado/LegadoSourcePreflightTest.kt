@@ -39,7 +39,7 @@ class LegadoSourcePreflightTest {
     }
 
     @Test fun rejectsUnsupportedRuleSyntax() {
-        val invalid = source.replace("@css:#content@html", "@js:result")
+        val invalid = source.replace("@css:#content@html", "@js:java.ajax('https://example.com')")
         assertTrue(LegadoSourcePreflight.inspect(invalid).single().issues.contains("Unsupported ruleContent.content"))
     }
 

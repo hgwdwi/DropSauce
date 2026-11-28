@@ -10,7 +10,7 @@ import java.net.URI
 
 /**
  * Offline Legado 3 source inspection, not a general AnalyzeRule implementation.
- * Only an explicit @css: subset is accepted. No scripts, requests or credentials
+ * Only the supported static and restricted expression subset is accepted. No requests or credentials
  * are executed or used at this stage. Unknown rules remain in the original JSON.
  */
 internal object LegadoSourcePreflight {

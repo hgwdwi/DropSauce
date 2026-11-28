@@ -62,8 +62,18 @@ class LegadoStaticRuleTest {
         assertTrue(LegadoStaticRule.parse("@get:{url}", false).values(root, LegadoVariables()).isEmpty())
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun rejectsScripts() {
-        LegadoStaticRule.parse("@js:java.get('x')", false)
+    @Test fun restrictedExpressionAndTemplate() {
+        val root = Jsoup.parse("<a href='/a'>  中文  </a>")
+        assertEquals(listOf("中文"), LegadoStaticRule.parse("@css:a@text@js:result.trim()", false).values(root))
+        val vars = LegadoVariables()
+        vars.put("id", "42")
+        assertEquals(listOf("/book/42"), LegadoStaticRule.parse("/book/{{@get:{id}}}", false).values(root, vars))
+        assertEquals(listOf("42"), LegadoStaticRule.parse("@js:java.get('id')", false).values(root, vars))
+    }
+
+    @Test fun rejectsArbitraryScripts() {
+        for (rule in listOf("@js:java.ajax('https://example.com')", "@js:while(true){}", "@js:result.constructor('x')", "@js:Packages.java.lang.System", "@js:eval('1')")) {
+            assertTrue(rule, runCatching { LegadoStaticRule.parse(rule, false) }.isFailure)
+        }
     }
 }
