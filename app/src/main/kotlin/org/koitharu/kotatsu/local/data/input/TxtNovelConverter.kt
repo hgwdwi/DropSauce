@@ -26,14 +26,14 @@ internal object TxtNovelConverter {
     data class Chapter(val title: String, val body: String)
 
     private val heading = Regex(
-        """^(?:第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集](?:[\s　：:、.．\-].*)?|(?:序章|序言|楔子|前言|尾声|尾聲|后记|後記|番外)(?:[\s　：:、.．\-].*)?|Chapter\s+\d+(?:\s+.*)?|(?:プロローグ|エピローグ|第[零〇一二三四五六七八九十百千万0-9０-９]+話(?:[\s　：:、.．\-].*)?))$""",
+        """^(?:第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集幕](?:[\s　：:、.．\-].*)?|(?:序章|序言|楔子|前言|尾声|尾聲|后记|後記|番外)(?:[\s　：:、.．\-].*)?|Chapter\s+\d+(?:\s+.*)?|(?:プロローグ|エピローグ|第[零〇一二三四五六七八九十百千万0-9０-９]+話(?:[\s　：:、.．\-].*)?))$""",
         RegexOption.IGNORE_CASE,
     )
 
     // Many Chinese web novels omit a separator: 第一章初见. Limit this
     // fallback to short lines without sentence-ending punctuation.
     private val compactHeading = Regex(
-        """^第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集](?!的)[^\s　：:、.．\-，。！？；!?;]{1,32}$""",
+        """^第[零〇一二两三四五六七八九十百千万億亿壹贰叁肆伍陆柒捌玖拾佰仟0-9０-９]+[章节節回卷部篇集幕](?!的)[^\s　：:、.．\-，。！？；!?;]{1,32}$""",
     )
 
     private fun isHeading(line: String): Boolean =
