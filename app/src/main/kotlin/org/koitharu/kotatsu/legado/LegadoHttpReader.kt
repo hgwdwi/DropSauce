@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Explicit user-triggered requests for a supported Legado source.
- * Isolated client: no app authentication, cookies, scripts or redirects.
+ * Per-source HTTP client with isolated cookies and same-origin-only redirects.
  */
 internal class LegadoHttpReader(
     private val source: LegadoSourcePreflight.Inspection,
@@ -87,7 +87,7 @@ internal class LegadoHttpReader(
                 builder.post(requireNotNull(requestBody).toRequestBody(type))
             } else builder.get()
             val response = client.newCall(builder.build()).await()
-            if (response.code in 300..399) {
+            if (response.code in setOf(301, 302, 303, 307, 308)) {
                 val status = response.code
                 val location = response.header("Location")
                 val next = location?.let { response.request.url.resolve(it) }

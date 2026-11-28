@@ -7,7 +7,7 @@
     <string name="tsubaki_import_partial_result">成功导入 %1$d 本，失败 %2$d 本</string>
     <string name="tsubaki_legado_sources">Legado 书源（实验）</string>
     <string name="tsubaki_legado_loading">处理中…</string>
-    <string name="tsubaki_legado_notice">仅导入可信的 JSON 书源。目前仅支持简单 CSS 规则，搜索会连接所选网站。</string>
+    <string name="tsubaki_legado_notice">仅导入可信的 JSON 书源。目前仅支持部分静态规则和表达式，搜索会连接所选网站。</string>
     <string name="tsubaki_legado_import">导入 JSON</string>
     <string name="tsubaki_legado_review">审核导入书源（%1$d）</string>
     <string name="tsubaki_legado_save">保存书源</string>

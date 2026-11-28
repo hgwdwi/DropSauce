@@ -172,7 +172,7 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                         chapters.take(200).forEach { chapter ->
                             Surface(onClick = {
                                 task {
-                                    val html = LegadoHttpReader(selected).content(chapter)
+                                    val html = httpReader(selected).content(chapter)
                                     preview = withContext(Dispatchers.Default) {
                                         TxtNovelConverter.Chapter(chapter.title, chapterText(html))
                                     }
@@ -197,14 +197,14 @@ class LegadoSourcesDialog : ComposeAlertDialogFragment() {
                         )
                         Button(onClick = {
                             val term = query.trim()
-                            task { results = LegadoHttpReader(selected).search(term) }
+                            task { results = httpReader(selected).search(term) }
                         }, enabled = !busy && query.isNotBlank()) {
                             Text(stringResource(R.string.tsubaki_legado_search))
                         }
                         results.take(50).forEach { result ->
                             Surface(onClick = {
                                 task {
-                                    val directory = LegadoHttpReader(selected).directory(result)
+                                    val directory = httpReader(selected).directory(result)
                                     chapters = directory.chapters
                                     book = directory.book
                                 }

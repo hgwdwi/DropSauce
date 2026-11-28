@@ -7,7 +7,7 @@
     <string name="tsubaki_import_partial_result">Imported %1$d books; %2$d failed</string>
     <string name="tsubaki_legado_sources">Legado sources (experimental)</string>
     <string name="tsubaki_legado_loading">Loading…</string>
-    <string name="tsubaki_legado_notice">Import only trusted JSON sources. Only simple CSS rules are supported. Searches contact the selected website.</string>
+    <string name="tsubaki_legado_notice">Import only trusted JSON sources. Only a limited subset of static and expression rules is supported. Searches contact the selected website.</string>
     <string name="tsubaki_legado_import">Import JSON</string>
     <string name="tsubaki_legado_review">Review imported sources (%1$d)</string>
     <string name="tsubaki_legado_save">Save source</string>

@@ -59,4 +59,17 @@ class LegadoCookieJarTest {
         assertFalse(file.exists())
         directory.deleteRecursively()
     }
+
+    @Test fun sourceInstancesShareSessionButRemainIsolated() {
+        val directory = Files.createTempDirectory("legado-cookie-isolation").toFile()
+        val first = LegadoCookieJar.forSource(directory, "https://example.com/source-a")
+        val same = LegadoCookieJar.forSource(directory, "https://example.com/source-a")
+        val other = LegadoCookieJar.forSource(directory, "https://example.com/source-b")
+        val session = Cookie.Builder().name("sid").value("one").hostOnlyDomain("example.com").path("/").build()
+        first.saveFromResponse(url, listOf(session))
+        assertEquals("one", same.loadForRequest(url).single().value())
+        assertTrue(other.loadForRequest(url).isEmpty())
+        first.clear()
+        directory.deleteRecursively()
+    }
 }
