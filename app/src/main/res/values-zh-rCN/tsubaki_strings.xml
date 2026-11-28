@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tsubaki_import_books">书籍与压缩包</string>
+    <string name="tsubaki_import_books_description">导入 TXT、EPUB、PDF 及支持的压缩包</string>
+    <string name="tsubaki_import_txt_folder">TXT 小说文件夹</string>
+    <string name="tsubaki_import_txt_folder_description">将所选文件夹中的 TXT 文件分别导入为独立书籍</string>
+    <string name="tsubaki_import_partial_result">成功导入 %1$d 本，失败 %2$d 本</string>
+    <string name="tsubaki_legado_sources">Legado 书源（实验）</string>
+    <string name="tsubaki_legado_loading">处理中…</string>
+    <string name="tsubaki_legado_notice">仅导入可信的 JSON 书源。目前仅支持部分静态规则和表达式，搜索会连接所选网站。</string>
+    <string name="tsubaki_legado_import">导入 JSON</string>
+    <string name="tsubaki_legado_review">审核导入书源（%1$d）</string>
+    <string name="tsubaki_legado_save">保存书源</string>
+    <string name="tsubaki_legado_clear">清空导入预览</string>
+    <string name="tsubaki_legado_saved">已保存书源（%1$d）</string>
+    <string name="tsubaki_legado_remove">移除</string>
+    <string name="tsubaki_legado_search">搜索</string>
+    <string name="tsubaki_legado_query">书名或关键词</string>
+    <string name="tsubaki_legado_back">返回</string>
+    <string name="tsubaki_legado_chapter_count">章节数：%1$d</string>
+    <string name="tsubaki_legado_preview">正文预览（非正式阅读器）</string>
+    <string name="tsubaki_legado_preview_limit">预览仅显示前 200 章</string>
+    <string name="tsubaki_legado_save_chapter">将本章保存为离线书籍</string>
+    <string name="tsubaki_legado_save_first">保存前 %1$d 章为离线书籍</string>
+    <string name="tsubaki_legado_cookies_clear">清除 Cookie</string>
+    <string name="tsubaki_txt_encoding_title">TXT 文本编码</string>
+    <string name="tsubaki_txt_encoding_message">选择 TXT 文件的解码方式。若文件包含 Unicode BOM，将优先使用 BOM 指定的编码。</string>
+    <string name="tsubaki_txt_encoding_auto">自动检测（优先 UTF-8，失败后尝试 GB18030）</string>
+    <string name="tsubaki_txt_encoding_utf8">UTF-8</string>
+    <string name="tsubaki_txt_encoding_utf16">UTF-16（建议文件带 BOM）</string>
+    <string name="tsubaki_txt_encoding_gb18030">GB18030</string>
+    <string name="tsubaki_txt_encoding_shift_jis">Shift_JIS（日文）</string>
+    <string name="tsubaki_txt_encoding_import">导入</string>
+    <string name="tsubaki_txt_encoding_windows31j">Windows-31J（CP932，日本 Windows 日文编码）</string>
+</resources>

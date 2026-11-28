@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tsubaki_import_books">Books and archives</string>
+    <string name="tsubaki_import_books_description">Import TXT, EPUB, PDF and supported archives</string>
+    <string name="tsubaki_import_txt_folder">TXT folder</string>
+    <string name="tsubaki_import_txt_folder_description">Import each TXT file in the selected folder as a separate book</string>
+    <string name="tsubaki_import_partial_result">Imported %1$d books; %2$d failed</string>
+    <string name="tsubaki_legado_sources">Legado sources (experimental)</string>
+    <string name="tsubaki_legado_loading">Loading…</string>
+    <string name="tsubaki_legado_notice">Import only trusted JSON sources. Only a limited subset of static and expression rules is supported. Searches contact the selected website.</string>
+    <string name="tsubaki_legado_import">Import JSON</string>
+    <string name="tsubaki_legado_review">Review imported sources (%1$d)</string>
+    <string name="tsubaki_legado_save">Save source</string>
+    <string name="tsubaki_legado_clear">Clear import preview</string>
+    <string name="tsubaki_legado_saved">Saved sources (%1$d)</string>
+    <string name="tsubaki_legado_remove">Remove</string>
+    <string name="tsubaki_legado_search">Search</string>
+    <string name="tsubaki_legado_query">Book title or keyword</string>
+    <string name="tsubaki_legado_back">Back</string>
+    <string name="tsubaki_legado_chapter_count">Chapters: %1$d</string>
+    <string name="tsubaki_legado_preview">Text preview (not the full reader)</string>
+    <string name="tsubaki_legado_preview_limit">Showing first 200 chapters in preview</string>
+    <string name="tsubaki_legado_save_chapter">Save chapter as offline book</string>
+    <string name="tsubaki_legado_save_first">Save first %1$d chapters as offline book</string>
+    <string name="tsubaki_legado_cookies_clear">Clear cookies</string>
+    <string name="tsubaki_txt_encoding_title">TXT text encoding</string>
+    <string name="tsubaki_txt_encoding_message">Choose how to decode the selected TXT files. A Unicode BOM, when present, takes precedence.</string>
+    <string name="tsubaki_txt_encoding_auto">Automatic (UTF-8, then GB18030)</string>
+    <string name="tsubaki_txt_encoding_utf8">UTF-8</string>
+    <string name="tsubaki_txt_encoding_utf16">UTF-16 (BOM recommended)</string>
+    <string name="tsubaki_txt_encoding_gb18030">GB18030</string>
+    <string name="tsubaki_txt_encoding_shift_jis">Shift_JIS (Japanese)</string>
+    <string name="tsubaki_txt_encoding_import">Import</string>
+    <string name="tsubaki_txt_encoding_windows31j">Windows-31J (CP932)</string>
+</resources>

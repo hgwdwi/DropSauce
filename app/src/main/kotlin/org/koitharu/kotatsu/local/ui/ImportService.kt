@@ -29,6 +29,7 @@ import org.koitharu.kotatsu.core.util.ext.toBitmapOrNull
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.core.util.ext.withPartialWakeLock
 import org.koitharu.kotatsu.local.data.importer.SingleMangaImporter
+import org.koitharu.kotatsu.local.data.input.TxtNovelEncoding
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import javax.inject.Inject
@@ -51,14 +52,22 @@ class ImportService : CoroutineIntentService() {
 
 	override suspend fun IntentJobContext.processIntent(intent: Intent) {
 		val uri = requireNotNull(intent.getStringExtra(DATA_URI)?.toUriOrNull()) { "No input uri" }
+		val textCharset = TxtNovelEncoding.fromIntentValue(intent.getStringExtra(TEXT_CHARSET)).charsetOrNull()
 		startForeground(this)
 		powerManager.withPartialWakeLock(TAG) {
+			var failedCount = 0
 			val result = runCatchingCancellable {
-				importer.import(uri).map { it.manga }
+				if (intent.getBooleanExtra(TEXT_FOLDER, false)) {
+					val batch = importer.importTextFolder(uri, textCharset)
+					failedCount = batch.failedCount
+					batch.books.map { it.manga }
+				} else {
+					importer.import(uri, textCharset).map { it.manga }
+				}
 			}
 			result.exceptionOrNull()?.printStackTraceDebug()
 			if (applicationContext.checkNotificationPermission(CHANNEL_ID)) {
-				val notification = buildNotification(startId, result)
+				val notification = buildNotification(startId, result, failedCount)
 				notificationManager.notify(TAG, startId, notification)
 			}
 		}
@@ -102,13 +111,21 @@ class ImportService : CoroutineIntentService() {
 		)
 	}
 
-	private suspend fun buildNotification(startId: Int, result: Result<List<Manga>>): Notification {
+	private suspend fun buildNotification(startId: Int, result: Result<List<Manga>>, failedCount: Int = 0): Notification {
 		val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
 			.setPriority(NotificationCompat.PRIORITY_DEFAULT)
 			.setDefaults(0)
 			.setSilent(true)
 			.setAutoCancel(true)
 		result.onSuccess { imported ->
+			if (failedCount > 0) {
+				notification.setContentTitle(applicationContext.getString(R.string.import_completed))
+					.setContentText(applicationContext.getString(
+						R.string.tsubaki_import_partial_result, imported.size, failedCount,
+					))
+					.setSmallIcon(R.drawable.general_notification)
+				return@onSuccess
+			}
 			val manga = imported.singleOrNull()
 			if (manga == null) {
 				notification.setContentTitle(applicationContext.getString(R.string.import_completed))
@@ -159,15 +176,24 @@ class ImportService : CoroutineIntentService() {
 	companion object {
 
 		private const val DATA_URI = "uri"
+		private const val TEXT_FOLDER = "text_folder"
+		private const val TEXT_CHARSET = "text_charset"
 		private const val TAG = "import"
 		private const val CHANNEL_ID = "importing"
 		private const val FOREGROUND_NOTIFICATION_ID = 37
 
-		fun start(context: Context, uris: Collection<Uri>): Boolean = try {
+		fun start(
+			context: Context,
+			uris: Collection<Uri>,
+			textFolder: Boolean = false,
+			textCharsetName: String? = null,
+		): Boolean = try {
 			require(uris.isNotEmpty())
 			for (uri in uris) {
 				val intent = Intent(context, ImportService::class.java)
 				intent.putExtra(DATA_URI, uri.toString())
+				intent.putExtra(TEXT_FOLDER, textFolder)
+				intent.putExtra(TEXT_CHARSET, textCharsetName)
 				ContextCompat.startForegroundService(context, intent)
 			}
 			true

@@ -27,6 +27,8 @@ import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.local.data.isSupportedArchive
 import org.koitharu.kotatsu.local.data.input.LocalMangaParser
+import org.koitharu.kotatsu.local.data.input.TxtNovelConverter
+import java.nio.charset.Charset
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import java.io.File
@@ -42,11 +44,11 @@ class SingleMangaImporter @Inject constructor(
 
 	private val contentResolver = context.contentResolver
 
-	suspend fun import(uri: Uri): List<LocalManga> {
+	suspend fun import(uri: Uri, textCharset: Charset? = null): List<LocalManga> {
 		val result = if (isDirectory(uri)) {
 			importDirectory(uri)
 		} else {
-			listOf(importFile(uri))
+			listOf(importFile(uri, textCharset))
 		}
 		for (manga in result) {
 			localStorageChanges.emit(manga)
@@ -54,9 +56,42 @@ class SingleMangaImporter @Inject constructor(
 		return result
 	}
 
-	private suspend fun importFile(uri: Uri): LocalManga = withContext(Dispatchers.IO) {
+	data class TextFolderResult(val books: List<LocalManga>, val failedCount: Int)
+
+	/** Import only top-level TXT documents; each becomes an independent local book. */
+	suspend fun importTextFolder(uri: Uri, textCharset: Charset? = null): TextFolderResult = withContext(Dispatchers.IO) {
+		val root = DocumentFile.fromTreeUri(context, uri)
+			?: throw IOException("Cannot open TXT folder")
+		val files = root.listFiles().filter {
+			it.isFile && it.name?.endsWith(".txt", ignoreCase = true) == true
+		}.sortedBy { it.name.orEmpty() }
+		if (files.isEmpty()) throw IOException("No TXT files in selected folder")
+		val books = ArrayList<LocalManga>()
+		var failed = 0
+		var firstFailure: Throwable? = null
+		for (file in files) {
+			val result = runCatchingCancellable { importTextNovel(file.uri, file.requireName(), textCharset) }
+			val book = result.getOrNull()
+			if (book != null) {
+				books.add(book)
+				localStorageChanges.emit(book)
+			} else {
+				failed++
+				val error = result.exceptionOrNull()
+				if (firstFailure == null) firstFailure = error
+				error?.printStackTraceDebug()
+			}
+		}
+		if (books.isEmpty()) throw IOException("No TXT files could be imported", firstFailure)
+		TextFolderResult(books, failed)
+	}
+
+	private suspend fun importFile(uri: Uri, textCharset: Charset? = null): LocalManga = withContext(Dispatchers.IO) {
 		val contentResolver = storageManager.contentResolver
 		val name = contentResolver.resolveName(uri) ?: throw IOException("Cannot fetch name from uri: $uri")
+		if (name.endsWith(".txt", ignoreCase = true)) {
+			return@withContext importTextNovel(uri, name, textCharset)
+		}
 		if (!isSupportedArchive(name)) {
 			throw UnsupportedFileException("Unsupported file $name on $uri")
 		}
@@ -73,6 +108,64 @@ class SingleMangaImporter @Inject constructor(
 			}
 		}.let { if (hasRarExtension(name)) runInterruptible { it.repackRarToCbz() } else it }
 		LocalMangaParser(dest).getManga(withDetails = false)
+	}
+
+	/** Import a user-requested offline text snapshot into the existing local library. */
+	internal suspend fun importGeneratedNovel(
+		title: String,
+		chapters: List<TxtNovelConverter.Chapter>,
+	): LocalManga = withContext(Dispatchers.IO) {
+		require(chapters.isNotEmpty() && chapters.size <= 10)
+		require(chapters.sumOf { it.body.length.toLong() } <= 2_000_000L)
+		val directory = getOutputDir()
+		val safeName = title.replace(Regex("""[\\/:*?"<>|\p{Cntrl}]"""), "_")
+			.trim().trim('.').take(60).trimEnd().ifBlank { "Novel" }
+		val stage = File.createTempFile("online_novel_", ".tmp", directory)
+		var destination: File? = null
+		try {
+			runInterruptible {
+				stage.outputStream().use { TxtNovelConverter.writeEpub(title, chapters, it) }
+			}
+			val output = uniqueFile(directory, "$safeName.epub")
+			if (!stage.renameTo(output)) throw IOException("Cannot move novel into library")
+			destination = output
+			val manga = LocalMangaParser(output).getManga(withDetails = false)
+			localStorageChanges.emit(manga)
+			manga
+		} catch (e: Exception) {
+			destination?.delete()
+			throw e
+		} finally {
+			stage.delete()
+		}
+	}
+
+	private suspend fun importTextNovel(uri: Uri, name: String, textCharset: Charset? = null): LocalManga {
+		val directory = getOutputDir()
+		val title = name.substringAfterLast('/').substringAfterLast('\\')
+			.substringBeforeLast('.').trim().ifBlank { "未命名小说" }
+		val stage = File.createTempFile("txt_import_", ".tmp", directory)
+		var destination: File? = null
+		try {
+			runInterruptible(Dispatchers.IO) {
+				val input = contentResolver.openInputStream(uri)
+					?: throw IOException("Cannot open TXT document")
+				val text = input.use { TxtNovelConverter.read(it, textCharset) }
+				val chapters = TxtNovelConverter.chapters(text)
+				stage.outputStream().use { TxtNovelConverter.writeEpub(title, chapters, it) }
+			}
+			val output = uniqueFile(directory, "$title.epub")
+			if (!stage.renameTo(output)) {
+				throw IOException("Cannot move converted EPUB into library")
+			}
+			destination = output
+			return LocalMangaParser(output).getManga(withDetails = false)
+		} catch (e: Exception) {
+			destination?.delete()
+			throw e
+		} finally {
+			stage.delete()
+		}
 	}
 
 	/**

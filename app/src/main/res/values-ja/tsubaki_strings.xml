@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tsubaki_txt_encoding_title">TXT の文字コード</string>
+    <string name="tsubaki_txt_encoding_message">選択した TXT ファイルの文字コードを指定します。Unicode BOM がある場合は BOM の指定を優先します。</string>
+    <string name="tsubaki_txt_encoding_auto">自動判定（UTF-8、失敗時は GB18030）</string>
+    <string name="tsubaki_txt_encoding_utf8">UTF-8</string>
+    <string name="tsubaki_txt_encoding_utf16">UTF-16（BOM 推奨）</string>
+    <string name="tsubaki_txt_encoding_gb18030">GB18030</string>
+    <string name="tsubaki_txt_encoding_shift_jis">Shift_JIS（日本語）</string>
+    <string name="tsubaki_txt_encoding_import">インポート</string>
+    <string name="tsubaki_txt_encoding_windows31j">Windows-31J（CP932）</string>
+</resources>

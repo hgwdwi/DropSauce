@@ -106,7 +106,9 @@ class ExploreFragment :
 				)
 			}
 		}
-		addMenuProvider(ExploreMenuProvider(router, ::showLanguageFilterDialog))
+		addMenuProvider(ExploreMenuProvider(router, ::showLanguageFilterDialog) {
+			org.koitharu.kotatsu.legado.LegadoSourcesDialog().show(childFragmentManager, "legado_sources")
+		})
 		var seenIds = emptySet<Long>()
 		viewModel.sources.observe(viewLifecycleOwner) { content ->
 			val validIds = buildSet {
