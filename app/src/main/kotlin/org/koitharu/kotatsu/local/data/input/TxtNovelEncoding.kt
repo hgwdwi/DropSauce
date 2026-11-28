@@ -16,7 +16,8 @@ internal enum class TxtNovelEncoding(
     UTF_8("UTF-8", "UTF-8"),
     UTF_16("UTF-16", "UTF-16"),
     GB18030("GB18030", "GB18030"),
-    SHIFT_JIS("Shift_JIS", "Shift_JIS");
+    SHIFT_JIS("Shift_JIS", "Shift_JIS"),
+    WINDOWS_31J("Windows-31J", "windows-31j");
 
     fun charsetOrNull(): Charset? = charsetName?.let(Charset::forName)
 
