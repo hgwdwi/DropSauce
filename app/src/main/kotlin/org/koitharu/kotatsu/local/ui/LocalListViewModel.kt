@@ -95,7 +95,7 @@ class LocalListViewModel @Inject constructor(
 		if (selectedShelf != LocalShelf.ALL) {
 			list.removeAll { item ->
 				if (item !is MangaListModel) return@removeAll false
-				val file = File(item.manga.url.toUri().schemeSpecificPart)
+				val file = item.manga.url.toUriOrNull()?.toFileOrNull() ?: return@removeAll false
 				LocalShelfClassifier.classify(file) != selectedShelf
 			}
 		}
