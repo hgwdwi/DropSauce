@@ -71,8 +71,14 @@ class LegadoStaticRuleTest {
         assertEquals(listOf("42"), LegadoStaticRule.parse("@js:java.get('id')", false).values(root, vars))
     }
 
+    @Test fun ajaxResultFlowsIntoRuleOutput() {
+        val vars = LegadoVariables(ajaxRequest = { url, _ -> "Fetched $url" })
+        val rule = LegadoStaticRule.parse("@js:java.ajax('/chapter')", false)
+        assertEquals(listOf("Fetched /chapter"), rule.values(Jsoup.parse("<div/>"), vars))
+    }
+
     @Test fun rejectsArbitraryScripts() {
-        for (rule in listOf("@js:java.ajax('https://example.com')", "@js:while(true){}", "@js:result.constructor('x')", "@js:Packages.java.lang.System", "@js:eval('1')")) {
+        for (rule in listOf("@js:while(true){}", "@js:result.constructor('x')", "@js:Packages.java.lang.System", "@js:eval('1')")) {
             assertTrue(rule, runCatching { LegadoStaticRule.parse(rule, false) }.isFailure)
         }
     }

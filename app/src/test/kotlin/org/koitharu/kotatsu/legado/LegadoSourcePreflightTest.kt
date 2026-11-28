@@ -39,8 +39,14 @@ class LegadoSourcePreflightTest {
     }
 
     @Test fun rejectsUnsupportedRuleSyntax() {
-        val invalid = source.replace("@css:#content@html", "@js:java.ajax('https://example.com')")
+        val invalid = source.replace("@css:#content@html", "@js:eval('1')")
         assertTrue(LegadoSourcePreflight.inspect(invalid).single().issues.contains("Unsupported ruleContent.content"))
+    }
+
+    @Test fun acceptsRestrictedAjaxForRuntimeEvaluation() {
+        val candidate = source.replace("@css:#content@html", "@js:java.ajax('/chapter')")
+        val inspection = LegadoSourcePreflight.inspect(candidate).single()
+        assertTrue(inspection.issues.toString(), inspection.supportedSubset)
     }
 
     @Test fun rejectsNonHttpSource() {
