@@ -28,6 +28,8 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.list.ui.model.MangaListModel
 import org.koitharu.kotatsu.list.ui.model.QuickFilter
 import org.koitharu.kotatsu.list.ui.model.TipModel
+import org.koitharu.kotatsu.local.data.LocalShelf
+import org.koitharu.kotatsu.local.data.LocalShelfClassifier
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.local.domain.DeleteLocalMangaUseCase
@@ -67,7 +69,16 @@ class LocalListViewModel @Inject constructor(
 	val onMangaRemoved = MutableEventFlow<Unit>()
 	private val showInlineFilter: Boolean = savedStateHandle[AppRouter.KEY_IS_BOTTOMTAB] ?: false
 
+	var selectedShelf: LocalShelf = LocalShelf.ALL
+		private set(value) {
+			field = value
+			savedStateHandle[KEY_LOCAL_SHELF] = value.name
+		}
+
 	init {
+		selectedShelf = savedStateHandle.get<String>(KEY_LOCAL_SHELF)
+			?.let { runCatching { LocalShelf.valueOf(it) }.getOrNull() }
+			?: LocalShelf.ALL
 		launchJob(Dispatchers.Default) {
 			localStorageChanges
 				.collect {
@@ -79,6 +90,13 @@ class LocalListViewModel @Inject constructor(
 
 	override suspend fun onBuildList(list: MutableList<ListModel>) {
 		super.onBuildList(list)
+		if (selectedShelf != LocalShelf.ALL) {
+			list.removeAll { item ->
+				if (item !is MangaListModel) return@removeAll false
+				val file = item.manga.url.toUriOrNull()?.toFileOrNull() ?: return@removeAll false
+				LocalShelfClassifier.classify(file) != selectedShelf
+			}
+		}
 		if (showInlineFilter) {
 			createFilterHeader(maxCount = 16)?.let {
 				list.add(0, it)
@@ -133,6 +151,12 @@ class LocalListViewModel @Inject constructor(
 		}
 	}
 
+	fun selectShelf(shelf: LocalShelf) {
+		if (selectedShelf == shelf) return
+		selectedShelf = shelf
+		loadList(filterCoordinator.snapshot(), append = false)
+	}
+
 	fun delete(ids: Set<Long>) {
 		launchLoadingJob(Dispatchers.Default) {
 			deleteLocalMangaUseCase(ids)
@@ -146,13 +170,17 @@ class LocalListViewModel @Inject constructor(
 		mode: ListMode
 	) = mangaListMapper.toListModelList(destination, manga, mode, MangaListMapper.NO_SAVED)
 
-	override fun createEmptyState(canResetFilter: Boolean): EmptyState = if (canResetFilter) {
-		super.createEmptyState(true)
-	} else {
-		EmptyState(
+	override fun createEmptyState(canResetFilter: Boolean): EmptyState {
+		if (canResetFilter) return super.createEmptyState(true)
+		val (title, description) = when (selectedShelf) {
+			LocalShelf.ALL -> R.string.text_local_holder_primary to R.string.text_local_holder_secondary
+			LocalShelf.COMICS -> R.string.text_local_comics_empty to R.string.text_local_comics_empty_hint
+			LocalShelf.NOVELS -> R.string.text_local_novels_empty to R.string.text_local_novels_empty_hint
+		}
+		return EmptyState(
 			icon = R.drawable.ic_empty_local,
-			textPrimary = R.string.text_local_holder_primary,
-			textSecondary = R.string.text_local_holder_secondary,
+			textPrimary = title,
+			textSecondary = description,
 			actionStringRes = R.string._import,
 		)
 	}
@@ -179,3 +207,5 @@ class LocalListViewModel @Inject constructor(
 		return QuickFilter(result)
 	}
 }
+
+private const val KEY_LOCAL_SHELF = "local_library_shelf"

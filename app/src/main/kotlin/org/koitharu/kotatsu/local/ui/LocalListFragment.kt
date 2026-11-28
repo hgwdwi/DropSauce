@@ -21,6 +21,8 @@ import org.koitharu.kotatsu.core.util.ext.addMenuProvider
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.tryLaunch
 import org.koitharu.kotatsu.databinding.FragmentListBinding
+import org.koitharu.kotatsu.databinding.ViewLocalShelfSelectorBinding
+import org.koitharu.kotatsu.local.data.LocalShelf
 import org.koitharu.kotatsu.filter.ui.FilterCoordinator
 import org.koitharu.kotatsu.list.ui.MangaListFragment
 import org.koitharu.kotatsu.remotelist.ui.MangaSearchMenuProvider
@@ -59,6 +61,26 @@ class LocalListFragment : MangaListFragment(), FilterCoordinator.Owner {
 	override fun onViewBindingCreated(binding: FragmentListBinding, savedInstanceState: Bundle?) {
 		super.onViewBindingCreated(binding, savedInstanceState)
 		addMenuProvider(LocalListMenuProvider(this, this::onEmptyActionClick))
+		val shelfBinding = ViewLocalShelfSelectorBinding.inflate(layoutInflater, binding.root, false)
+		binding.root.addView(shelfBinding.root, binding.root.indexOfChild(binding.swipeRefreshLayout))
+		shelfBinding.shelfToggleGroup.check(
+			when (viewModel.selectedShelf) {
+				LocalShelf.ALL -> R.id.shelfAll
+				LocalShelf.COMICS -> R.id.shelfComics
+				LocalShelf.NOVELS -> R.id.shelfNovels
+			},
+		)
+		shelfBinding.shelfToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+			if (isChecked) {
+				viewModel.selectShelf(
+					when (checkedId) {
+						R.id.shelfComics -> LocalShelf.COMICS
+						R.id.shelfNovels -> LocalShelf.NOVELS
+						else -> LocalShelf.ALL
+					},
+				)
+			}
+		}
 		addMenuProvider(MangaSearchMenuProvider(filterCoordinator, viewModel, activity))
 		viewModel.onMangaRemoved.observeEvent(viewLifecycleOwner) { onItemRemoved() }
 	}
