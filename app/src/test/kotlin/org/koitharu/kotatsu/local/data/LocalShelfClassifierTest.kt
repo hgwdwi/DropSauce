@@ -21,9 +21,21 @@ class LocalShelfClassifierTest {
     }
 
     @Test
-    fun classifiesDirectoriesAsComics() {
+    fun classifiesDirectoriesContainingEpubCollectionsAsNovels() {
+        val directory = Files.createTempDirectory("novel-shelf-test").toFile()
+        try {
+            File(directory, "Volume 1.epub").createNewFile()
+            assertEquals(LocalShelf.NOVELS, LocalShelfClassifier.classify(directory))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun classifiesImageDirectoriesAsComics() {
         val directory = Files.createTempDirectory("comic-shelf-test").toFile()
         try {
+            File(directory, "001.jpg").createNewFile()
             assertEquals(LocalShelf.COMICS, LocalShelfClassifier.classify(directory))
         } finally {
             directory.deleteRecursively()
@@ -31,9 +43,15 @@ class LocalShelfClassifierTest {
     }
 
     @Test
-    fun keepsUnknownFilesInAllShelf() {
-        listOf("book.txt", "archive.rar", "cover.png", "README").forEach {
+    fun keepsUnknownFilesAndEmptyDirectoriesInAllShelf() {
+        listOf("book.txt", "archive.rar", "README").forEach {
             assertEquals(it, LocalShelf.ALL, LocalShelfClassifier.classify(File(it)))
+        }
+        val directory = Files.createTempDirectory("unknown-shelf-test").toFile()
+        try {
+            assertEquals(LocalShelf.ALL, LocalShelfClassifier.classify(directory))
+        } finally {
+            directory.deleteRecursively()
         }
     }
 }
